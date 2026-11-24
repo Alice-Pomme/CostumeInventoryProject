@@ -40,8 +40,8 @@ export default function Home() {
           }`}
         >
           {configured
-            ? "Supabase env vars detected — ready to query."
-            : "Supabase env not set. Copy .env.local.example → .env.local and add NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY."}
+            ? "Supabase env detected in this runtime — probe /api/supabase-health to verify tables."
+            : "This Cloud Agent VM does not receive Cursor Secrets. Bound SUPABASE_URL / SUPABASE_ANON_KEY apply on publish; for local/dev use .env.local."}
         </p>
       </main>
     </div>
