@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseUrl, hasSupabaseEnv } from "@/lib/supabase/env";
 
@@ -10,6 +10,9 @@ const TABLES = ["pieces", "costumes", "costume_pieces", "commandes"] as const;
  * Reports only URL host match + whether each core table is reachable.
  */
 export async function GET() {
+  // Opt into request-time execution so published secrets are visible.
+  await connection();
+
   if (!hasSupabaseEnv()) {
     return NextResponse.json({
       ok: false,
