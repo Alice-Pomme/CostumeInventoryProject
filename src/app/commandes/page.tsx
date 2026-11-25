@@ -1,5 +1,3 @@
-export const instant = false;
-
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { AppNav } from "@/components/AppNav";

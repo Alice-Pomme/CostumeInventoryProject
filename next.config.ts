@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  /* Keep Cache Components off — it was producing opaque RSC digests on /pieces
+     (Erreur — Pièces Réf. 520999525) under the published host. */
   turbopack: {
     rules: {
       "*.css": {
