@@ -1,4 +1,7 @@
--- Run in the Supabase SQL editor so /pieces can save rows with the anon key.
+-- Prefer docs/sql/schema.sql (full inventory schema).
+-- This file only creates `pieces` with RLS and no anon policies.
+
+create extension if not exists "pgcrypto";
 
 create table if not exists public.pieces (
   id uuid primary key default gen_random_uuid(),
@@ -13,21 +16,9 @@ create table if not exists public.pieces (
 
 alter table public.pieces enable row level security;
 
--- Private Cursor app uses the anon/publishable key only.
 drop policy if exists "pieces_select_anon" on public.pieces;
 drop policy if exists "pieces_insert_anon" on public.pieces;
 drop policy if exists "pieces_update_anon" on public.pieces;
 drop policy if exists "pieces_delete_anon" on public.pieces;
 
-create policy "pieces_select_anon" on public.pieces
-  for select to anon using (true);
-create policy "pieces_insert_anon" on public.pieces
-  for insert to anon with check (true);
-create policy "pieces_update_anon" on public.pieces
-  for update to anon using (true) with check (true);
-create policy "pieces_delete_anon" on public.pieces
-  for delete to anon using (true);
-
--- Optional Storage bucket for piece photos (create in Dashboard if missing).
--- insert into storage.buckets (id, name, public) values ('photos-pieces', 'photos-pieces', true)
--- on conflict (id) do nothing;
+-- No anon/authenticated policies: access is via the server service role only.

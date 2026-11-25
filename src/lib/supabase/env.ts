@@ -1,26 +1,23 @@
 /**
- * Shared env resolution for Supabase.
- * Prefer server-only SUPABASE_* (bound Cursor secrets / .env.local).
- * NEXT_PUBLIC_* remains supported for local browser clients when needed.
+ * Server-only Supabase env resolution.
+ * Do not use NEXT_PUBLIC_* for keys — those would ship to the browser.
  */
+
 export function getSupabaseUrl(): string {
-  const url =
-    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  return url.trim();
+  return (process.env.SUPABASE_URL ?? "").trim();
 }
 
 export function getSupabaseAnonKey(): string {
-  const key =
-    process.env.SUPABASE_ANON_KEY ??
-    process.env.SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    "";
-  return key.trim();
+  return (process.env.SUPABASE_ANON_KEY ?? "").trim();
 }
 
+export function getSupabaseServiceRoleKey(): string {
+  return (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+}
+
+/** App data access requires URL + service role (server-side only). */
 export function hasSupabaseEnv(): boolean {
-  return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
+  return Boolean(getSupabaseUrl() && getSupabaseServiceRoleKey());
 }
 
 export function requireSupabaseEnv(): { url: string; anonKey: string } {
@@ -28,8 +25,19 @@ export function requireSupabaseEnv(): { url: string; anonKey: string } {
   const anonKey = getSupabaseAnonKey();
   if (!url || !anonKey) {
     throw new Error(
-      "Missing Supabase env. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (see .env.local.example).",
+      "Missing Supabase env. Set SUPABASE_URL and SUPABASE_ANON_KEY (see .env.local.example).",
     );
   }
   return { url, anonKey };
+}
+
+export function requireServiceRoleEnv(): { url: string; serviceRoleKey: string } {
+  const url = getSupabaseUrl();
+  const serviceRoleKey = getSupabaseServiceRoleKey();
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "Missing Supabase service role. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server-only secrets).",
+    );
+  }
+  return { url, serviceRoleKey };
 }

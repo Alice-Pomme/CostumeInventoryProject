@@ -26,6 +26,7 @@ import {
   updateCostumePiece,
 } from "@/app/actions/costumes";
 import { FicheHabillage } from "@/components/FicheHabillage";
+import { SafeImage } from "@/components/SafeImage";
 import { Button, Field, TextInput } from "@/components/ui";
 
 function SortableRow({
@@ -69,14 +70,10 @@ function SortableRow({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      {item.pieces?.photo_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.pieces.photo_url}
-          alt=""
-          className="h-10 w-10 rounded object-cover"
-        />
-      ) : null}
+      <SafeImage
+        src={item.pieces?.photo_url}
+        className="h-10 w-10 rounded object-cover"
+      />
       <div className="min-w-0 flex-1">
         <p className="font-medium text-zinc-900 dark:text-zinc-50">
           {item.pieces?.nom ?? "Pièce inconnue"}

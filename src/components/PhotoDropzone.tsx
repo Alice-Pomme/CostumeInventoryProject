@@ -2,8 +2,10 @@
 
 import { useId, useRef, useState, type DragEvent, type ChangeEvent } from "react";
 import { ImagePlus, X } from "lucide-react";
+import { safeImageSrc } from "@/lib/safe-image-url";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+const ALLOWED = new Set(ACCEPT.split(","));
 const MAX_BYTES = 8 * 1024 * 1024;
 
 type Props = {
@@ -36,7 +38,7 @@ export function PhotoDropzone({
       clearFile();
       return;
     }
-    if (!file.type.startsWith("image/")) {
+    if (!ALLOWED.has(file.type)) {
       setError("Choisissez une image (JPEG, PNG, WebP ou GIF).");
       clearFile();
       return;
@@ -70,7 +72,7 @@ export function PhotoDropzone({
     applyFile(e.dataTransfer.files?.[0]);
   }
 
-  const shown = preview || existingUrl;
+  const shown = preview || safeImageSrc(existingUrl);
 
   return (
     <div className="space-y-2">

@@ -52,9 +52,9 @@ async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
   if (file.size > MAX_PHOTO_BYTES) {
     throw new Error("Image trop lourde (max. 8 Mo).");
   }
-  const type = file.type || "image/jpeg";
-  if (!ALLOWED_PHOTO_TYPES.has(type) && !type.startsWith("image/")) {
-    throw new Error("Format d’image non supporté.");
+  const type = file.type;
+  if (!type || !ALLOWED_PHOTO_TYPES.has(type)) {
+    throw new Error("Format d’image non supporté (JPEG, PNG, WebP ou GIF).");
   }
 
   const ext =

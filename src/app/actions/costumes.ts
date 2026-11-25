@@ -3,11 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeStoredImageUrl } from "@/lib/safe-image-url";
 
 function emptyToNull(value: FormDataEntryValue | null): string | null {
   if (value == null) return null;
   const s = String(value).trim();
   return s.length ? s : null;
+}
+
+function photoUrlFromForm(formData: FormData): string | null {
+  const raw = emptyToNull(formData.get("photo_url"));
+  if (!raw) return null;
+  const safe = sanitizeStoredImageUrl(raw);
+  if (!safe) {
+    throw new Error("URL photo invalide — utilisez une adresse https.");
+  }
+  return safe;
 }
 
 export async function createCostume(formData: FormData) {
@@ -21,7 +32,7 @@ export async function createCostume(formData: FormData) {
       nom,
       theme: emptyToNull(formData.get("theme")),
       description: emptyToNull(formData.get("description")),
-      photo_url: emptyToNull(formData.get("photo_url")),
+      photo_url: photoUrlFromForm(formData),
     })
     .select("id")
     .single();
@@ -42,7 +53,7 @@ export async function updateCostume(costumeId: string, formData: FormData) {
       nom,
       theme: emptyToNull(formData.get("theme")),
       description: emptyToNull(formData.get("description")),
-      photo_url: emptyToNull(formData.get("photo_url")),
+      photo_url: photoUrlFromForm(formData),
     })
     .eq("id", costumeId);
 

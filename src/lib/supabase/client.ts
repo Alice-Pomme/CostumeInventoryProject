@@ -1,8 +1,9 @@
-import { createBrowserClient } from "@supabase/ssr";
-import type { Database } from "@/types/database";
-import { requireSupabaseEnv } from "./env";
-
-export function createClient() {
-  const { url, anonKey } = requireSupabaseEnv();
-  return createBrowserClient<Database>(url, anonKey);
+/**
+ * Browser Supabase client is intentionally unavailable.
+ * All inventory access goes through server actions / RSC with the service role.
+ */
+export function createClient(): never {
+  throw new Error(
+    "Client-side Supabase is disabled. Use server actions for inventory data.",
+  );
 }

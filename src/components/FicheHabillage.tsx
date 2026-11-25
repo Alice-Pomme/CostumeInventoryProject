@@ -2,6 +2,7 @@
 
 import { Printer } from "lucide-react";
 import type { CostumePieceWithPiece } from "@/types/database";
+import { SafeImage } from "@/components/SafeImage";
 import { Button } from "@/components/ui";
 
 export function FicheHabillage({
@@ -68,18 +69,15 @@ export function FicheHabillage({
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">
                 {item.ordre_habillage ?? "—"}
               </span>
-              {item.pieces?.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.pieces.photo_url}
-                  alt=""
-                  className="h-14 w-14 rounded object-cover print:h-12 print:w-12"
-                />
-              ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-zinc-100 text-[10px] text-zinc-400 dark:bg-zinc-900 print:h-12 print:w-12">
-                  Photo
-                </div>
-              )}
+              <SafeImage
+                src={item.pieces?.photo_url}
+                className="h-14 w-14 rounded object-cover print:h-12 print:w-12"
+                fallback={
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-zinc-100 text-[10px] text-zinc-400 dark:bg-zinc-900 print:h-12 print:w-12">
+                    Photo
+                  </div>
+                }
+              />
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="font-medium text-zinc-900 dark:text-zinc-50">
                   {item.pieces?.nom ?? "Pièce inconnue"}

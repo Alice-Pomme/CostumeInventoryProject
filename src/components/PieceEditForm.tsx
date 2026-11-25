@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/pieces";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
 import { PhotoDropzone } from "@/components/PhotoDropzone";
+import { safeImageSrc } from "@/lib/safe-image-url";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 type Piece = {
@@ -52,8 +53,8 @@ export function PieceEditForm({
         </h2>
         <form action={uploadFormAction} className="space-y-3">
           <PhotoDropzone
-            existingUrl={piece.photo_url}
-            required={!piece.photo_url}
+            existingUrl={safeImageSrc(piece.photo_url)}
+            required={!safeImageSrc(piece.photo_url)}
           />
           <Button
             type="submit"

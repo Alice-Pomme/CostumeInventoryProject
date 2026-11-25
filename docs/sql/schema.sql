@@ -1,5 +1,8 @@
 -- Costume Inventory — run once in the Supabase SQL editor.
--- Enables the app (anon key) to read/write all inventory tables.
+--
+-- Access model: RLS is enabled with NO grants for the `anon` role.
+-- The private Cursor app reads/writes via the server-only service role key
+-- (bypasses RLS). Never put the service role key in client/browser code.
 
 create extension if not exists "pgcrypto";
 
@@ -21,15 +24,13 @@ drop policy if exists "pieces_select_anon" on public.pieces;
 drop policy if exists "pieces_insert_anon" on public.pieces;
 drop policy if exists "pieces_update_anon" on public.pieces;
 drop policy if exists "pieces_delete_anon" on public.pieces;
+drop policy if exists "pieces_select_authenticated" on public.pieces;
+drop policy if exists "pieces_insert_authenticated" on public.pieces;
+drop policy if exists "pieces_update_authenticated" on public.pieces;
+drop policy if exists "pieces_delete_authenticated" on public.pieces;
 
-create policy "pieces_select_anon" on public.pieces
-  for select to anon, authenticated using (true);
-create policy "pieces_insert_anon" on public.pieces
-  for insert to anon, authenticated with check (true);
-create policy "pieces_update_anon" on public.pieces
-  for update to anon, authenticated using (true) with check (true);
-create policy "pieces_delete_anon" on public.pieces
-  for delete to anon, authenticated using (true);
+-- No policies for anon or authenticated → denied by default.
+-- Service role (server) bypasses RLS.
 
 -- ── costumes ────────────────────────────────────────────────────────
 create table if not exists public.costumes (
@@ -48,15 +49,10 @@ drop policy if exists "costumes_select_anon" on public.costumes;
 drop policy if exists "costumes_insert_anon" on public.costumes;
 drop policy if exists "costumes_update_anon" on public.costumes;
 drop policy if exists "costumes_delete_anon" on public.costumes;
-
-create policy "costumes_select_anon" on public.costumes
-  for select to anon, authenticated using (true);
-create policy "costumes_insert_anon" on public.costumes
-  for insert to anon, authenticated with check (true);
-create policy "costumes_update_anon" on public.costumes
-  for update to anon, authenticated using (true) with check (true);
-create policy "costumes_delete_anon" on public.costumes
-  for delete to anon, authenticated using (true);
+drop policy if exists "costumes_select_authenticated" on public.costumes;
+drop policy if exists "costumes_insert_authenticated" on public.costumes;
+drop policy if exists "costumes_update_authenticated" on public.costumes;
+drop policy if exists "costumes_delete_authenticated" on public.costumes;
 
 -- ── costume_pieces ──────────────────────────────────────────────────
 create table if not exists public.costume_pieces (
@@ -75,15 +71,10 @@ drop policy if exists "costume_pieces_select_anon" on public.costume_pieces;
 drop policy if exists "costume_pieces_insert_anon" on public.costume_pieces;
 drop policy if exists "costume_pieces_update_anon" on public.costume_pieces;
 drop policy if exists "costume_pieces_delete_anon" on public.costume_pieces;
-
-create policy "costume_pieces_select_anon" on public.costume_pieces
-  for select to anon, authenticated using (true);
-create policy "costume_pieces_insert_anon" on public.costume_pieces
-  for insert to anon, authenticated with check (true);
-create policy "costume_pieces_update_anon" on public.costume_pieces
-  for update to anon, authenticated using (true) with check (true);
-create policy "costume_pieces_delete_anon" on public.costume_pieces
-  for delete to anon, authenticated using (true);
+drop policy if exists "costume_pieces_select_authenticated" on public.costume_pieces;
+drop policy if exists "costume_pieces_insert_authenticated" on public.costume_pieces;
+drop policy if exists "costume_pieces_update_authenticated" on public.costume_pieces;
+drop policy if exists "costume_pieces_delete_authenticated" on public.costume_pieces;
 
 -- ── commandes ───────────────────────────────────────────────────────
 create table if not exists public.commandes (
@@ -104,17 +95,12 @@ drop policy if exists "commandes_select_anon" on public.commandes;
 drop policy if exists "commandes_insert_anon" on public.commandes;
 drop policy if exists "commandes_update_anon" on public.commandes;
 drop policy if exists "commandes_delete_anon" on public.commandes;
+drop policy if exists "commandes_select_authenticated" on public.commandes;
+drop policy if exists "commandes_insert_authenticated" on public.commandes;
+drop policy if exists "commandes_update_authenticated" on public.commandes;
+drop policy if exists "commandes_delete_authenticated" on public.commandes;
 
-create policy "commandes_select_anon" on public.commandes
-  for select to anon, authenticated using (true);
-create policy "commandes_insert_anon" on public.commandes
-  for insert to anon, authenticated with check (true);
-create policy "commandes_update_anon" on public.commandes
-  for update to anon, authenticated using (true) with check (true);
-create policy "commandes_delete_anon" on public.commandes
-  for delete to anon, authenticated using (true);
-
--- ── storage bucket for piece photos ─────────────────────────────────
+-- ── storage: public read for display URLs; writes via service role only ─
 insert into storage.buckets (id, name, public)
 values ('photos-pieces', 'photos-pieces', true)
 on conflict (id) do update set public = excluded.public;
@@ -122,11 +108,11 @@ on conflict (id) do update set public = excluded.public;
 drop policy if exists "photos_pieces_public_read" on storage.objects;
 drop policy if exists "photos_pieces_anon_insert" on storage.objects;
 drop policy if exists "photos_pieces_anon_update" on storage.objects;
+drop policy if exists "photos_pieces_anon_delete" on storage.objects;
+drop policy if exists "photos_pieces_authenticated_insert" on storage.objects;
+drop policy if exists "photos_pieces_authenticated_update" on storage.objects;
 
+-- Anyone may read objects (needed for <img src> public URLs).
+-- Uploads/updates go through the server service role (bypasses storage RLS).
 create policy "photos_pieces_public_read" on storage.objects
   for select to public using (bucket_id = 'photos-pieces');
-create policy "photos_pieces_anon_insert" on storage.objects
-  for insert to anon, authenticated with check (bucket_id = 'photos-pieces');
-create policy "photos_pieces_anon_update" on storage.objects
-  for update to anon, authenticated using (bucket_id = 'photos-pieces')
-  with check (bucket_id = 'photos-pieces');

@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 import { createPiece, type PieceActionState } from "@/app/actions/pieces";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
 import { PhotoDropzone } from "@/components/PhotoDropzone";
+import { SafeImage } from "@/components/SafeImage";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 export type PieceRow = {
@@ -115,13 +116,17 @@ export function PiecesInventory({
             </div>
           </form>
           <p className="mt-3 text-xs text-zinc-500">
-            Les données sont enregistrées dans votre projet Supabase (table{" "}
+            Enregistrement serveur vers Supabase (table{" "}
             <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">pieces</code>
-            ). Si l’enregistrement échoue, exécutez{" "}
+            ). Une fois : exécutez{" "}
             <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
               docs/sql/schema.sql
             </code>{" "}
-            dans l’éditeur SQL Supabase.
+            et configurez le secret{" "}
+            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
+              SUPABASE_SERVICE_ROLE_KEY
+            </code>
+            .
           </p>
         </section>
       ) : null}
@@ -168,18 +173,15 @@ export function PiecesInventory({
                 >
                   <td className="px-4 py-3">
                     <Link href={`/pieces/${piece.id}`} className="block">
-                      {piece.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={piece.photo_url}
-                          alt=""
-                          className="h-12 w-12 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded bg-zinc-100 text-[10px] text-zinc-400 dark:bg-zinc-900">
-                          —
-                        </div>
-                      )}
+                      <SafeImage
+                        src={piece.photo_url}
+                        className="h-12 w-12 rounded object-cover"
+                        fallback={
+                          <div className="flex h-12 w-12 items-center justify-center rounded bg-zinc-100 text-[10px] text-zinc-400 dark:bg-zinc-900">
+                            —
+                          </div>
+                        }
+                      />
                     </Link>
                   </td>
                   <td className="px-4 py-3">
