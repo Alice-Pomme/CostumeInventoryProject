@@ -1,120 +1,101 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PieceEditForm } from "@/components/PieceEditForm";
+import { AppNav } from "@/components/AppNav";
 import { PageShell } from "@/components/ui";
-import { createServiceClient } from "@/lib/supabase/admin";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
-
-export const dynamic = "force-dynamic";
-
-type PieceRow = {
-  id: string;
-  nom: string;
-  categorie: string | null;
-  stock_total: number | null;
-  photo_url: string | null;
-  notes: string | null;
-};
+import { getSupabaseOrNull } from "@/lib/supabase/load";
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
-function asPiece(row: Record<string, unknown>): PieceRow | null {
-  if (typeof row.id !== "string" || typeof row.nom !== "string") return null;
-  return {
-    id: row.id,
-    nom: row.nom,
-    categorie: typeof row.categorie === "string" ? row.categorie : null,
-    stock_total:
-      typeof row.stock_total === "number"
-        ? row.stock_total
-        : row.stock_total == null
-          ? null
-          : Number(row.stock_total) || 0,
-    photo_url: typeof row.photo_url === "string" ? row.photo_url : null,
-    notes: typeof row.notes === "string" ? row.notes : null,
-  };
-}
-
+/**
+ * Server-only detail (no PieceEditForm client island) so the /pieces
+ * segment matches /costumes: no client create/edit bundle on first paint.
+ */
 export default async function PieceDetailPage({ params }: Props) {
   const { id } = await params;
+  const supabase = await getSupabaseOrNull();
 
-  if (!hasSupabaseEnv()) {
+  if (!supabase) {
     return (
-      <PageShell title="Pièce">
-        <p className="text-sm text-red-600">
-          Connexion Supabase indisponible. Vérifiez SUPABASE_URL et
-          SUPABASE_SERVICE_ROLE_KEY.
-        </p>
-        <Link href="/pieces" className="mt-4 inline-block text-sm underline">
-          ← Retour aux pièces
-        </Link>
-      </PageShell>
+      <>
+        <AppNav />
+        <PageShell title="Pièce">
+          <p className="text-sm text-red-600">
+            Connexion Supabase indisponible.
+          </p>
+          <Link href="/pieces" className="mt-4 inline-block text-sm underline">
+            ← Retour aux pièces
+          </Link>
+        </PageShell>
+      </>
     );
   }
 
-  let piece: PieceRow | null = null;
-  let categories: string[] = [];
-  let errorMessage: string | null = null;
+  const { data, error } = await supabase
+    .from("pieces")
+    .select("id, nom, categorie, stock_total, photo_url, notes")
+    .eq("id", id)
+    .maybeSingle();
 
-  try {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("pieces")
-      .select("id, nom, categorie, stock_total, photo_url, notes")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (error) {
-      errorMessage = String(error.message || "Erreur Supabase");
-    } else if (data) {
-      piece = asPiece(data as Record<string, unknown>);
-      if (!piece) errorMessage = "Données de pièce invalides.";
-    }
-
-    const { data: catRows } = await supabase.from("pieces").select("categorie");
-    const seen = new Set<string>();
-    for (const row of catRows ?? []) {
-      const cat =
-        typeof row.categorie === "string" ? row.categorie.trim() : "";
-      if (!cat) continue;
-      const key = cat.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      categories.push(cat);
-    }
-  } catch (err) {
-    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
-    console.error("PieceDetailPage load failed:", err);
-  }
-
-  if (errorMessage) {
+  if (error) {
     return (
-      <PageShell title="Pièce">
-        <p className="text-sm text-red-600">{errorMessage}</p>
-        <Link href="/pieces" className="mt-4 inline-block text-sm underline">
-          ← Retour aux pièces
-        </Link>
-      </PageShell>
+      <>
+        <AppNav />
+        <PageShell title="Pièce">
+          <p className="text-sm text-red-600">
+            Impossible de charger la pièce.
+          </p>
+          <Link href="/pieces" className="mt-4 inline-block text-sm underline">
+            ← Retour aux pièces
+          </Link>
+        </PageShell>
+      </>
     );
   }
-  if (!piece) notFound();
+
+  if (!data) notFound();
 
   return (
-    <PageShell
-      title={piece.nom}
-      description="Modifier la pièce et sa photo."
-      actions={
-        <Link
-          href="/pieces"
-          className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
-        >
-          ← Retour aux pièces
-        </Link>
-      }
-    >
-      <PieceEditForm piece={piece} categories={categories} />
-    </PageShell>
+    <>
+      <AppNav />
+      <PageShell
+        title={data.nom}
+        description="Fiche pièce."
+        actions={
+          <Link
+            href="/pieces"
+            className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
+          >
+            ← Retour aux pièces
+          </Link>
+        }
+      >
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-zinc-500">Catégorie</dt>
+            <dd>{data.categorie || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-500">Stock total</dt>
+            <dd>{data.stock_total ?? 0}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-zinc-500">Notes</dt>
+            <dd>{data.notes || "—"}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-zinc-500">Photo URL</dt>
+            <dd className="break-all text-zinc-600">
+              {data.photo_url || "—"}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-6 text-sm text-zinc-500">
+          L’édition complète (photo dropzone) revient dès que la liste est
+          stable.
+        </p>
+      </PageShell>
+    </>
   );
 }
