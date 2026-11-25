@@ -2,7 +2,7 @@ export const instant = false;
 
 import Link from "next/link";
 import { connection } from "next/server";
-import { Shirt, Layers } from "lucide-react";
+import { Shirt, Layers, ClipboardList } from "lucide-react";
 import { AppNav } from "@/components/AppNav";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
@@ -18,11 +18,10 @@ export default async function Home() {
           Inventaire de costumes
         </h1>
         <p className="mt-2 max-w-xl text-base text-zinc-600 dark:text-zinc-400">
-          Gérez les pièces individuelles, les costumes complets et l’ordre
-          d’habillage.
+          Gérez les pièces, les costumes, l’ordre d’habillage et les locations.
         </p>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
           <Link
             href="/pieces"
             className="group border border-zinc-200 p-6 transition hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
@@ -45,6 +44,18 @@ export default async function Home() {
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
               Thème, description et liaison des pièces (quantité + ordre).
+            </p>
+          </Link>
+          <Link
+            href="/commandes"
+            className="group border border-zinc-200 p-6 transition hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+          >
+            <ClipboardList className="mb-3 h-6 w-6 text-zinc-700 dark:text-zinc-300" />
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+              Commandes
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Locations avec besoin consolidé et alertes de pénurie.
             </p>
           </Link>
         </div>

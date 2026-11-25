@@ -4,6 +4,7 @@ import { Shirt } from "lucide-react";
 const links = [
   { href: "/pieces", label: "Pièces" },
   { href: "/costumes", label: "Costumes" },
+  { href: "/commandes", label: "Commandes" },
 ];
 
 export function AppNav() {
