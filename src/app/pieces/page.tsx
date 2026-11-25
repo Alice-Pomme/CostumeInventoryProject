@@ -1,18 +1,11 @@
 export const instant = false;
 
+import { connection } from "next/server";
 import { AppNav } from "@/components/AppNav";
-import { PiecesInventory } from "@/components/PiecesInventory";
+import { PiecesInventory, type PieceRow } from "@/components/PiecesInventory";
 import { PageShell } from "@/components/ui";
-import { loadTableRows } from "@/lib/supabase/load";
-
-type PieceRow = {
-  id: string;
-  nom: string;
-  categorie: string | null;
-  stock_total: number | null;
-  photo_url: string | null;
-  notes: string | null;
-};
+import { createServiceClient } from "@/lib/supabase/admin";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 function categoriesFromPieces(pieces: PieceRow[]): string[] {
   const seen = new Set<string>();
@@ -28,21 +21,53 @@ function categoriesFromPieces(pieces: PieceRow[]): string[] {
   return out;
 }
 
-type Props = {
-  searchParams: Promise<{ error?: string }>;
-};
+function sanitizePiece(row: Record<string, unknown>): PieceRow | null {
+  if (typeof row.id !== "string" || typeof row.nom !== "string") return null;
+  return {
+    id: row.id,
+    nom: row.nom,
+    categorie: typeof row.categorie === "string" ? row.categorie : null,
+    stock_total:
+      typeof row.stock_total === "number"
+        ? row.stock_total
+        : row.stock_total == null
+          ? null
+          : Number(row.stock_total) || 0,
+    photo_url: typeof row.photo_url === "string" ? row.photo_url : null,
+    notes: typeof row.notes === "string" ? row.notes : null,
+  };
+}
 
-export default async function PiecesPage({ searchParams }: Props) {
-  const { error: queryError } = await searchParams;
-  const { rows: pieces, errorMessage } = await loadTableRows<PieceRow>(
-    (supabase) =>
-      supabase
+export default async function PiecesPage() {
+  await connection();
+
+  let pieces: PieceRow[] = [];
+  let errorMessage: string | null = null;
+
+  try {
+    if (hasSupabaseEnv()) {
+      const supabase = createServiceClient();
+      const { data, error } = await supabase
         .from("pieces")
         .select("id, nom, categorie, stock_total, photo_url, notes")
-        .order("nom"),
-  );
+        .order("nom");
+      if (error) {
+        errorMessage = String(error.message || "Erreur Supabase");
+      } else {
+        pieces = (data ?? [])
+          .map((row) => sanitizePiece(row as Record<string, unknown>))
+          .filter((row): row is PieceRow => row != null);
+      }
+    }
+  } catch (err) {
+    errorMessage =
+      err instanceof Error ? err.message : "Erreur inattendue au chargement.";
+    console.error("PiecesPage load failed:", err);
+  }
 
-  const banner = queryError || errorMessage;
+  // Guaranteed plain JSON for the client boundary.
+  const safePieces = JSON.parse(JSON.stringify(pieces)) as PieceRow[];
+  const safeCategories = categoriesFromPieces(safePieces);
 
   return (
     <>
@@ -51,18 +76,13 @@ export default async function PiecesPage({ searchParams }: Props) {
         title="Pièces"
         description="Inventaire des pièces : nom, catégorie, stock total, photo et notes."
       >
-        {banner ? (
+        {errorMessage ? (
           <p className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-            {banner.startsWith("Impossible")
-              ? banner
-              : `Impossible de charger ou d’enregistrer : ${banner}`}
+            Impossible de charger les pièces : {errorMessage}
           </p>
         ) : null}
 
-        <PiecesInventory
-          pieces={pieces}
-          categories={categoriesFromPieces(pieces)}
-        />
+        <PiecesInventory pieces={safePieces} categories={safeCategories} />
       </PageShell>
     </>
   );

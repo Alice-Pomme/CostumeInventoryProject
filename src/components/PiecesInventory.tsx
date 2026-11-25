@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { createPiece, type PieceActionState } from "@/app/actions/pieces";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
@@ -29,29 +28,56 @@ const COLUMNS = [
 
 const initialState: PieceActionState = { error: null };
 
+function mergeCategories(base: string[], pieces: PieceRow[]): string[] {
+  const seen = new Set(base.map((c) => c.toLowerCase()));
+  const out = [...base];
+  for (const piece of pieces) {
+    const cat = piece.categorie?.trim();
+    if (!cat) continue;
+    const key = cat.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cat);
+  }
+  return out;
+}
+
 export function PiecesInventory({
-  pieces,
-  categories,
+  pieces: initialPieces,
+  categories: initialCategories,
 }: {
   pieces: PieceRow[];
   categories: string[];
 }) {
-  const router = useRouter();
-  const [adding, setAdding] = useState(pieces.length === 0);
+  const [pieces, setPieces] = useState(initialPieces);
+  const [categories, setCategories] = useState(initialCategories);
+  const [adding, setAdding] = useState(initialPieces.length === 0);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(createPiece, initialState);
 
   useEffect(() => {
-    if (!state.createdId || state.error) return;
-    // Stay on the list so a detail-page RSC error cannot hide a successful save.
+    setPieces(initialPieces);
+    setCategories(initialCategories);
+    setAdding((open) => (initialPieces.length === 0 ? true : open));
+  }, [initialPieces, initialCategories]);
+
+  useEffect(() => {
+    if (!state.created || state.error) return;
+
+    setPieces((prev) => {
+      if (prev.some((p) => p.id === state.created!.id)) return prev;
+      return [...prev, state.created!].sort((a, b) =>
+        a.nom.localeCompare(b.nom, "fr"),
+      );
+    });
+    setCategories((prev) => mergeCategories(prev, [state.created!]));
     setSavedNotice(
       state.photoWarning
         ? `Pièce enregistrée (photo non téléversée : ${state.photoWarning}).`
         : "Pièce enregistrée dans Supabase.",
     );
     setAdding(false);
-    router.refresh();
-  }, [state.createdId, state.error, state.photoWarning, router]);
+  }, [state.created, state.error, state.photoWarning]);
 
   return (
     <div className="space-y-6">

@@ -14,10 +14,20 @@ const ALLOWED_PHOTO_TYPES = new Set([
   "image/gif",
 ]);
 
+export type CreatedPiece = {
+  id: string;
+  nom: string;
+  categorie: string | null;
+  stock_total: number | null;
+  photo_url: string | null;
+  notes: string | null;
+};
+
 export type PieceActionState = {
   error: string | null;
-  /** Set on successful create — client navigates (avoids host redirect crashes). */
+  /** Set on successful create — client updates list without RSC revalidate. */
   createdId?: string | null;
+  created?: CreatedPiece | null;
   photoWarning?: string | null;
 };
 
@@ -112,16 +122,20 @@ export async function createPiece(
       return { error: "Le nom est obligatoire." };
     }
 
+    const categorie = emptyToNull(formData.get("categorie"));
+    const stock_total = Number(formData.get("stock_total") || 0);
+    const notes = emptyToNull(formData.get("notes"));
+
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("pieces")
       .insert({
         nom,
-        categorie: emptyToNull(formData.get("categorie")),
-        stock_total: Number(formData.get("stock_total") || 0),
-        notes: emptyToNull(formData.get("notes")),
+        categorie,
+        stock_total,
+        notes,
       })
-      .select("id")
+      .select("id, nom, categorie, stock_total, photo_url, notes")
       .single();
 
     if (error || !data) {
@@ -131,10 +145,12 @@ export async function createPiece(
     }
 
     let photoWarning: string | null = null;
+    let photo_url =
+      typeof data.photo_url === "string" ? data.photo_url : null;
     const photo = getPhotoFile(formData);
     if (photo) {
       try {
-        await storePiecePhoto(data.id, photo);
+        photo_url = await storePiecePhoto(data.id, photo);
       } catch (err) {
         photoWarning = friendlyDbError(
           err instanceof Error ? err.message : "Échec du téléversement photo.",
@@ -142,9 +158,20 @@ export async function createPiece(
       }
     }
 
-    revalidatePath("/pieces");
-    revalidatePath(`/pieces/${data.id}`);
-    return { error: null, createdId: data.id, photoWarning };
+    // Do not revalidatePath here: a failing RSC re-render after insert was
+    // surfacing as Erreur — Pièces and hiding the successful save.
+    const created: CreatedPiece = {
+      id: String(data.id),
+      nom: String(data.nom ?? nom),
+      categorie:
+        typeof data.categorie === "string" ? data.categorie : categorie,
+      stock_total:
+        typeof data.stock_total === "number" ? data.stock_total : stock_total,
+      photo_url,
+      notes: typeof data.notes === "string" ? data.notes : notes,
+    };
+
+    return { error: null, createdId: created.id, created, photoWarning };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inattendue.";
     return { error: friendlyDbError(message) };

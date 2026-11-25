@@ -1,25 +1,49 @@
 export const instant = false;
 
+import { connection } from "next/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { PieceEditForm } from "@/components/PieceEditForm";
 import { PageShell } from "@/components/ui";
-import { getSupabaseOrNull } from "@/lib/supabase/load";
+import { createServiceClient } from "@/lib/supabase/admin";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
+
+type PieceRow = {
+  id: string;
+  nom: string;
+  categorie: string | null;
+  stock_total: number | null;
+  photo_url: string | null;
+  notes: string | null;
+};
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ photoError?: string }>;
 };
 
-export default async function PieceDetailPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const sp = await searchParams;
-  const photoError =
-    typeof sp.photoError === "string" ? sp.photoError : null;
+function sanitizePiece(row: Record<string, unknown>): PieceRow | null {
+  if (typeof row.id !== "string" || typeof row.nom !== "string") return null;
+  return {
+    id: row.id,
+    nom: row.nom,
+    categorie: typeof row.categorie === "string" ? row.categorie : null,
+    stock_total:
+      typeof row.stock_total === "number"
+        ? row.stock_total
+        : row.stock_total == null
+          ? null
+          : Number(row.stock_total) || 0,
+    photo_url: typeof row.photo_url === "string" ? row.photo_url : null,
+    notes: typeof row.notes === "string" ? row.notes : null,
+  };
+}
 
-  const supabase = await getSupabaseOrNull();
-  if (!supabase) {
+export default async function PieceDetailPage({ params }: Props) {
+  await connection();
+  const { id } = await params;
+
+  if (!hasSupabaseEnv()) {
     return (
       <>
         <AppNav />
@@ -36,18 +60,12 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
     );
   }
 
-  let piece: {
-    id: string;
-    nom: string;
-    categorie: string | null;
-    stock_total: number | null;
-    photo_url: string | null;
-    notes: string | null;
-  } | null = null;
+  let piece: PieceRow | null = null;
   let categories: string[] = [];
   let errorMessage: string | null = null;
 
   try {
+    const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("pieces")
       .select("id, nom, categorie, stock_total, photo_url, notes")
@@ -55,9 +73,10 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
       .maybeSingle();
 
     if (error) {
-      errorMessage = error.message;
-    } else {
-      piece = data;
+      errorMessage = String(error.message || "Erreur Supabase");
+    } else if (data) {
+      piece = sanitizePiece(data as Record<string, unknown>);
+      if (!piece) errorMessage = "Données de pièce invalides.";
     }
 
     const { data: catRows } = await supabase
@@ -75,6 +94,7 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
     }
   } catch (err) {
     errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+    console.error("PieceDetailPage load failed:", err);
   }
 
   if (errorMessage) {
@@ -92,11 +112,14 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
   }
   if (!piece) notFound();
 
+  const safePiece = JSON.parse(JSON.stringify(piece)) as PieceRow;
+  const safeCategories = JSON.parse(JSON.stringify(categories)) as string[];
+
   return (
     <>
       <AppNav />
       <PageShell
-        title={piece.nom}
+        title={safePiece.nom}
         description="Modifier la pièce et sa photo."
         actions={
           <Link
@@ -107,11 +130,7 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
           </Link>
         }
       >
-        <PieceEditForm
-          piece={piece}
-          categories={categories}
-          photoError={photoError}
-        />
+        <PieceEditForm piece={safePiece} categories={safeCategories} />
       </PageShell>
     </>
   );
