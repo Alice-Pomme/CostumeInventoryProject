@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { createClient } from "./server";
+import { createServiceClient } from "./admin";
 import { hasSupabaseEnv } from "./env";
 
 /**
@@ -12,7 +12,7 @@ export async function getSupabaseOrNull(): Promise<SupabaseClient<Database> | nu
   await connection();
   if (!hasSupabaseEnv()) return null;
   try {
-    return await createClient();
+    return createServiceClient();
   } catch (err) {
     console.error("Supabase client init failed:", err);
     return null;

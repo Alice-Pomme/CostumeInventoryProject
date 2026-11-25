@@ -28,7 +28,12 @@ function categoriesFromPieces(pieces: PieceRow[]): string[] {
   return out;
 }
 
-export default async function PiecesPage() {
+type Props = {
+  searchParams: Promise<{ error?: string }>;
+};
+
+export default async function PiecesPage({ searchParams }: Props) {
+  const { error: queryError } = await searchParams;
   const { rows: pieces, errorMessage } = await loadTableRows<PieceRow>(
     (supabase) =>
       supabase
@@ -37,6 +42,8 @@ export default async function PiecesPage() {
         .order("nom"),
   );
 
+  const banner = queryError || errorMessage;
+
   return (
     <>
       <AppNav />
@@ -44,9 +51,11 @@ export default async function PiecesPage() {
         title="Pièces"
         description="Inventaire des pièces : nom, catégorie, stock total, photo et notes."
       >
-        {errorMessage ? (
+        {banner ? (
           <p className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-            Impossible de charger les pièces : {errorMessage}
+            {banner.startsWith("Impossible")
+              ? banner
+              : `Impossible de charger ou d’enregistrer : ${banner}`}
           </p>
         ) : null}
 

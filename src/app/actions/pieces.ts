@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { PHOTOS_PIECES_BUCKET } from "@/types/database";
@@ -17,6 +16,9 @@ const ALLOWED_PHOTO_TYPES = new Set([
 
 export type PieceActionState = {
   error: string | null;
+  /** Set on successful create — client navigates (avoids host redirect crashes). */
+  createdId?: string | null;
+  photoWarning?: string | null;
 };
 
 function emptyToNull(value: FormDataEntryValue | null): string | null {
@@ -28,13 +30,20 @@ function emptyToNull(value: FormDataEntryValue | null): string | null {
 function friendlyDbError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("relation") && lower.includes("does not exist")) {
-    return "La table « pieces » n’existe pas encore dans Supabase. Exécutez docs/sql/schema.sql dans l’éditeur SQL, puis réessayez.";
+    return "La table « pieces » n’existe pas encore. Réexécutez docs/sql/schema.sql dans Supabase.";
   }
-  if (lower.includes("row-level security") || lower.includes("rls")) {
-    return "Insertion refusée par les politiques RLS Supabase. Autorisez INSERT/SELECT pour le rôle anon sur « pieces ».";
+  if (
+    lower.includes("row-level security") ||
+    lower.includes("rls") ||
+    lower.includes("new row violates")
+  ) {
+    return "Accès refusé par RLS. Vérifiez SUPABASE_SERVICE_ROLE_KEY et docs/sql/schema.sql.";
+  }
+  if (lower.includes("invalid api key") || lower.includes("jwt")) {
+    return "Clé Supabase invalide. Vérifiez SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.";
   }
   if (lower.includes("permission denied") || lower.includes("42501")) {
-    return "Permission refusée sur « pieces ». Vérifiez les droits et les politiques RLS.";
+    return "Permission refusée sur « pieces ». Vérifiez le rôle service et RLS.";
   }
   if (lower.includes("bucket") || lower.includes("not found")) {
     return "Bucket Storage « photos-pieces » introuvable ou inaccessible.";
@@ -63,8 +72,8 @@ async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
   const path = `${pieceId}/${Date.now()}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 
-  const storage = createServiceClient();
-  const { error: uploadError } = await storage.storage
+  const supabase = createServiceClient();
+  const { error: uploadError } = await supabase.storage
     .from(PHOTOS_PIECES_BUCKET)
     .upload(path, bytes, {
       contentType: type,
@@ -75,9 +84,8 @@ async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
 
   const {
     data: { publicUrl },
-  } = storage.storage.from(PHOTOS_PIECES_BUCKET).getPublicUrl(path);
+  } = supabase.storage.from(PHOTOS_PIECES_BUCKET).getPublicUrl(path);
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from("pieces")
     .update({ photo_url: publicUrl })
@@ -91,21 +99,20 @@ export async function createPiece(
   _prev: PieceActionState,
   formData: FormData,
 ): Promise<PieceActionState> {
-  if (!hasSupabaseEnv()) {
-    return {
-      error:
-        "Connexion Supabase absente. Vérifiez les secrets SUPABASE_URL et SUPABASE_ANON_KEY.",
-    };
-  }
-
-  const nom = String(formData.get("nom") ?? "").trim();
-  if (!nom) {
-    return { error: "Le nom est obligatoire." };
-  }
-
-  let pieceId: string;
   try {
-    const supabase = await createClient();
+    if (!hasSupabaseEnv()) {
+      return {
+        error:
+          "Connexion Supabase absente. Vérifiez SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.",
+      };
+    }
+
+    const nom = String(formData.get("nom") ?? "").trim();
+    if (!nom) {
+      return { error: "Le nom est obligatoire." };
+    }
+
+    const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("pieces")
       .insert({
@@ -122,29 +129,26 @@ export async function createPiece(
         error: friendlyDbError(error?.message ?? "Échec de l’enregistrement."),
       };
     }
-    pieceId = data.id;
+
+    let photoWarning: string | null = null;
+    const photo = getPhotoFile(formData);
+    if (photo) {
+      try {
+        await storePiecePhoto(data.id, photo);
+      } catch (err) {
+        photoWarning = friendlyDbError(
+          err instanceof Error ? err.message : "Échec du téléversement photo.",
+        );
+      }
+    }
+
+    revalidatePath("/pieces");
+    revalidatePath(`/pieces/${data.id}`);
+    return { error: null, createdId: data.id, photoWarning };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inattendue.";
     return { error: friendlyDbError(message) };
   }
-
-  const photo = getPhotoFile(formData);
-  if (photo) {
-    try {
-      await storePiecePhoto(pieceId, photo);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Échec du téléversement photo.";
-      // Piece row exists — send user to detail with a photo warning.
-      revalidatePath("/pieces");
-      redirect(
-        `/pieces/${pieceId}?photoError=${encodeURIComponent(friendlyDbError(message))}`,
-      );
-    }
-  }
-
-  revalidatePath("/pieces");
-  redirect(`/pieces/${pieceId}`);
 }
 
 export async function updatePiece(
@@ -152,15 +156,15 @@ export async function updatePiece(
   _prev: PieceActionState,
   formData: FormData,
 ): Promise<PieceActionState> {
-  if (!hasSupabaseEnv()) {
-    return { error: "Connexion Supabase absente." };
-  }
-
-  const nom = String(formData.get("nom") ?? "").trim();
-  if (!nom) return { error: "Le nom est obligatoire." };
-
   try {
-    const supabase = await createClient();
+    if (!hasSupabaseEnv()) {
+      return { error: "Connexion Supabase absente." };
+    }
+
+    const nom = String(formData.get("nom") ?? "").trim();
+    if (!nom) return { error: "Le nom est obligatoire." };
+
+    const supabase = createServiceClient();
     const { error } = await supabase
       .from("pieces")
       .update({
@@ -185,20 +189,37 @@ export async function updatePiece(
         return { error: friendlyDbError(message) };
       }
     }
+
+    revalidatePath("/pieces");
+    revalidatePath(`/pieces/${pieceId}`);
+    return { error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inattendue.";
     return { error: friendlyDbError(message) };
   }
-
-  revalidatePath("/pieces");
-  revalidatePath(`/pieces/${pieceId}`);
-  return { error: null };
 }
 
-export async function deletePiece(pieceId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("pieces").delete().eq("id", pieceId);
-  if (error) throw new Error(friendlyDbError(error.message));
+export async function deletePiece(pieceId: string): Promise<void> {
+  try {
+    if (!hasSupabaseEnv()) {
+      redirect("/pieces?error=" + encodeURIComponent("Connexion Supabase absente."));
+    }
+    const supabase = createServiceClient();
+    const { error } = await supabase.from("pieces").delete().eq("id", pieceId);
+    if (error) {
+      redirect(
+        "/pieces?error=" + encodeURIComponent(friendlyDbError(error.message)),
+      );
+    }
+  } catch (err) {
+    // redirect() throws — rethrow those; otherwise soft-fail to list.
+    const digest = err && typeof err === "object" && "digest" in err
+      ? String((err as { digest?: unknown }).digest)
+      : "";
+    if (digest.startsWith("NEXT_REDIRECT")) throw err;
+    const message = err instanceof Error ? err.message : "Erreur inattendue.";
+    redirect("/pieces?error=" + encodeURIComponent(friendlyDbError(message)));
+  }
   revalidatePath("/pieces");
   redirect("/pieces");
 }
@@ -208,18 +229,18 @@ export async function uploadPiecePhoto(
   _prev: PieceActionState,
   formData: FormData,
 ): Promise<PieceActionState> {
-  const file = getPhotoFile(formData);
-  if (!file) {
-    return { error: "Choisissez une photo." };
-  }
   try {
+    const file = getPhotoFile(formData);
+    if (!file) {
+      return { error: "Choisissez une photo." };
+    }
     await storePiecePhoto(pieceId, file);
+    revalidatePath(`/pieces/${pieceId}`);
+    revalidatePath("/pieces");
+    return { error: null };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Échec du téléversement photo.";
     return { error: friendlyDbError(message) };
   }
-  revalidatePath(`/pieces/${pieceId}`);
-  revalidatePath("/pieces");
-  return { error: null };
 }

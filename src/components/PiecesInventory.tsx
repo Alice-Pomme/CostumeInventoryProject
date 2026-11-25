@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { createPiece, type PieceActionState } from "@/app/actions/pieces";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
@@ -35,8 +36,18 @@ export function PiecesInventory({
   pieces: PieceRow[];
   categories: string[];
 }) {
+  const router = useRouter();
   const [adding, setAdding] = useState(pieces.length === 0);
   const [state, formAction, pending] = useActionState(createPiece, initialState);
+
+  useEffect(() => {
+    if (!state.createdId) return;
+    const q = state.photoWarning
+      ? `?photoError=${encodeURIComponent(state.photoWarning)}`
+      : "";
+    router.push(`/pieces/${state.createdId}${q}`);
+    router.refresh();
+  }, [state.createdId, state.photoWarning, router]);
 
   return (
     <div className="space-y-6">
@@ -80,6 +91,11 @@ export function PiecesInventory({
               className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
             >
               {state.error}
+            </p>
+          ) : null}
+          {state.createdId && !state.error ? (
+            <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+              Pièce enregistrée — ouverture de la fiche…
             </p>
           ) : null}
           <form

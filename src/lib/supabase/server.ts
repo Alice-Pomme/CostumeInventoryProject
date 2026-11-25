@@ -1,4 +1,4 @@
-import "server-only";
+// Server-only module — do not import from Client Components.
 
 import { connection } from "next/server";
 import type { Database } from "@/types/database";
