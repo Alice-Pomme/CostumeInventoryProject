@@ -2,6 +2,8 @@
 
 Tables utilisées par l’interface (colonnes confirmées pour l’UI).
 
+**Setup:** run [`docs/sql/schema.sql`](./sql/schema.sql) once in the Supabase SQL editor so `pieces` / `costumes` / `costume_pieces` / `commandes` exist and the anon key can read/write (RLS policies) plus the `photos-pieces` Storage bucket.
+
 ```text
 costumes 1──* costume_pieces *──1 pieces
 costumes 1──* commandes

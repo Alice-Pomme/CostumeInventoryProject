@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
-import { createPiece } from "@/app/actions/pieces";
+import { createPiece, type PieceActionState } from "@/app/actions/pieces";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
 import { PhotoDropzone } from "@/components/PhotoDropzone";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
@@ -25,6 +25,8 @@ const COLUMNS = [
   { key: "notes", label: "Notes" },
 ] as const;
 
+const initialState: PieceActionState = { error: null };
+
 export function PiecesInventory({
   pieces,
   categories,
@@ -33,6 +35,7 @@ export function PiecesInventory({
   categories: string[];
 }) {
   const [adding, setAdding] = useState(pieces.length === 0);
+  const [state, formAction, pending] = useActionState(createPiece, initialState);
 
   return (
     <div className="space-y-6">
@@ -70,8 +73,16 @@ export function PiecesInventory({
           <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
             Ajouter une pièce
           </h2>
+          {state.error ? (
+            <p
+              role="alert"
+              className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
+            >
+              {state.error}
+            </p>
+          ) : null}
           <form
-            action={createPiece}
+            action={formAction}
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           >
             <Field label="Nom *">
@@ -97,12 +108,21 @@ export function PiecesInventory({
               </Field>
             </div>
             <div className="sm:col-span-2 lg:col-span-4">
-              <Button type="submit">
+              <Button type="submit" disabled={pending}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                Enregistrer la pièce
+                {pending ? "Enregistrement…" : "Enregistrer la pièce"}
               </Button>
             </div>
           </form>
+          <p className="mt-3 text-xs text-zinc-500">
+            Les données sont enregistrées dans votre projet Supabase (table{" "}
+            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">pieces</code>
+            ). Si l’enregistrement échoue, exécutez{" "}
+            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
+              docs/sql/schema.sql
+            </code>{" "}
+            dans l’éditeur SQL Supabase.
+          </p>
         </section>
       ) : null}
 

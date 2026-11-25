@@ -7,10 +7,14 @@ import { PieceEditForm } from "@/components/PieceEditForm";
 import { PageShell } from "@/components/ui";
 import { getSupabaseOrNull } from "@/lib/supabase/load";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ photoError?: string }>;
+};
 
-export default async function PieceDetailPage({ params }: Props) {
+export default async function PieceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { photoError } = await searchParams;
   const supabase = await getSupabaseOrNull();
   if (!supabase) notFound();
 
@@ -64,7 +68,11 @@ export default async function PieceDetailPage({ params }: Props) {
           </Link>
         }
       >
-        <PieceEditForm piece={piece} categories={categories} />
+        <PieceEditForm
+          piece={piece}
+          categories={categories}
+          photoError={photoError ?? null}
+        />
       </PageShell>
     </>
   );

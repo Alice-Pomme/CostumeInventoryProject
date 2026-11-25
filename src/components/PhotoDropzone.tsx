@@ -121,10 +121,11 @@ export function PhotoDropzone({
         <input
           ref={inputRef}
           id={inputId}
-          name={name}
+          // Only submit the field when a file is chosen (avoids empty File crashes).
+          name={fileName ? name : undefined}
           type="file"
           accept={ACCEPT}
-          required={required && !existingUrl}
+          required={required && !existingUrl && !fileName}
           onChange={onInputChange}
           className="sr-only"
         />
