@@ -4,18 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { createPieceForm } from "@/app/actions/create-piece";
+import { listPieces, type PieceListItem } from "@/app/actions/list-pieces";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
-type PieceRow = {
-  id: string;
-  nom: string;
-  categorie: string | null;
-  stock_total: number;
-  notes: string | null;
-};
-
 export function PiecesClient() {
-  const [pieces, setPieces] = useState<PieceRow[]>([]);
+  const [pieces, setPieces] = useState<PieceListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,32 +16,14 @@ export function PiecesClient() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/pieces", {
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (res.status === 401) {
-          if (!cancelled) {
-            setPieces([]);
-            setLoadError("Connexion Cursor requise pour charger les pièces.");
-            setLoading(false);
-          }
-          return;
-        }
-        const body = (await res.json()) as {
-          ok?: boolean;
-          pieces?: PieceRow[];
-          error?: string | null;
-        };
+        const result = await listPieces();
         if (cancelled) return;
-        setPieces(Array.isArray(body.pieces) ? body.pieces : []);
-        setLoadError(
-          body.ok ? null : "Impossible de charger les pièces depuis Supabase.",
-        );
+        setPieces(result.pieces);
+        setLoadError(result.ok ? null : result.message);
       } catch {
         if (!cancelled) {
           setPieces([]);
-          setLoadError("Impossible de joindre l’API pièces.");
+          setLoadError("Impossible de joindre le serveur pour charger les pièces.");
         }
       } finally {
         if (!cancelled) setLoading(false);

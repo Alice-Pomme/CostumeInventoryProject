@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireViewerOrResponse } from "@/lib/auth/require-viewer";
+import {
+  classifySupabaseError,
+  messageForFailCode,
+} from "@/lib/supabase/classify-error";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
@@ -44,7 +48,7 @@ function toPiece(row: Record<string, unknown>): PieceDto | null {
   };
 }
 
-/** JSON list for the client pieces UI — requires a signed-in Cursor viewer. */
+/** JSON list — requires a signed-in Cursor viewer. UI prefers the listPieces action. */
 export async function GET(request: Request) {
   const identity = await requireViewerOrResponse(request);
   if (identity instanceof Response) {
@@ -56,7 +60,12 @@ export async function GET(request: Request) {
 
   if (!hasSupabaseEnv()) {
     return NextResponse.json(
-      { ok: false, pieces: [] as PieceDto[], error: "not_configured" },
+      {
+        ok: false,
+        pieces: [] as PieceDto[],
+        error: "not_configured",
+        message: messageForFailCode("not_configured"),
+      },
       { status: 503, headers: NO_STORE },
     );
   }
@@ -69,9 +78,15 @@ export async function GET(request: Request) {
       .order("nom");
 
     if (error) {
-      console.error("GET /api/pieces query failed");
+      const code = classifySupabaseError(error.message);
+      console.error("GET /api/pieces:", code);
       return NextResponse.json(
-        { ok: false, pieces: [] as PieceDto[], error: "query_failed" },
+        {
+          ok: false,
+          pieces: [] as PieceDto[],
+          error: code,
+          message: messageForFailCode(code),
+        },
         { status: 502, headers: NO_STORE },
       );
     }
@@ -81,13 +96,18 @@ export async function GET(request: Request) {
       .filter((p): p is PieceDto => p != null);
 
     return NextResponse.json(
-      { ok: true, pieces, error: null },
+      { ok: true, pieces, error: null, message: null },
       { headers: NO_STORE },
     );
   } catch (err) {
     console.error("GET /api/pieces threw:", err);
     return NextResponse.json(
-      { ok: false, pieces: [] as PieceDto[], error: "unexpected" },
+      {
+        ok: false,
+        pieces: [] as PieceDto[],
+        error: "unexpected",
+        message: messageForFailCode("unexpected"),
+      },
       { status: 500, headers: NO_STORE },
     );
   }
