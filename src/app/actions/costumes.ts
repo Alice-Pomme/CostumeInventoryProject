@@ -1,0 +1,133 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+function emptyToNull(value: FormDataEntryValue | null): string | null {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s.length ? s : null;
+}
+
+export async function createCostume(formData: FormData) {
+  const supabase = await createClient();
+  const nom = String(formData.get("nom") ?? "").trim();
+  if (!nom) throw new Error("Le nom est obligatoire.");
+
+  const { data, error } = await supabase
+    .from("costumes")
+    .insert({
+      nom,
+      theme: emptyToNull(formData.get("theme")),
+      description: emptyToNull(formData.get("description")),
+      photo_url: emptyToNull(formData.get("photo_url")),
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/costumes");
+  redirect(`/costumes/${data.id}`);
+}
+
+export async function updateCostume(costumeId: string, formData: FormData) {
+  const supabase = await createClient();
+  const nom = String(formData.get("nom") ?? "").trim();
+  if (!nom) throw new Error("Le nom est obligatoire.");
+
+  const { error } = await supabase
+    .from("costumes")
+    .update({
+      nom,
+      theme: emptyToNull(formData.get("theme")),
+      description: emptyToNull(formData.get("description")),
+      photo_url: emptyToNull(formData.get("photo_url")),
+    })
+    .eq("id", costumeId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/costumes");
+  revalidatePath(`/costumes/${costumeId}`);
+}
+
+export async function deleteCostume(costumeId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("costumes").delete().eq("id", costumeId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/costumes");
+  redirect("/costumes");
+}
+
+export async function addPieceToCostume(costumeId: string, formData: FormData) {
+  const supabase = await createClient();
+  const pieceId = String(formData.get("piece_id") ?? "").trim();
+  if (!pieceId) throw new Error("Choisissez une pièce.");
+
+  const quantite = Number(formData.get("quantite_par_costume") || 1);
+
+  const { data: existing } = await supabase
+    .from("costume_pieces")
+    .select("ordre_habillage")
+    .eq("costume_id", costumeId)
+    .order("ordre_habillage", { ascending: false })
+    .limit(1);
+
+  const nextOrder =
+    existing && existing.length > 0
+      ? Number(existing[0].ordre_habillage ?? 0) + 1
+      : 1;
+
+  const { error } = await supabase.from("costume_pieces").insert({
+    costume_id: costumeId,
+    piece_id: pieceId,
+    quantite_par_costume: quantite,
+    ordre_habillage: nextOrder,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/costumes/${costumeId}`);
+}
+
+export async function updateCostumePiece(
+  linkId: string,
+  costumeId: string,
+  formData: FormData,
+) {
+  const supabase = await createClient();
+  const quantite = Number(formData.get("quantite_par_costume") || 1);
+  const { error } = await supabase
+    .from("costume_pieces")
+    .update({ quantite_par_costume: quantite })
+    .eq("id", linkId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/costumes/${costumeId}`);
+}
+
+export async function removePieceFromCostume(linkId: string, costumeId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("costume_pieces")
+    .delete()
+    .eq("id", linkId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/costumes/${costumeId}`);
+}
+
+export async function reorderCostumePieces(
+  costumeId: string,
+  orderedLinkIds: string[],
+) {
+  const supabase = await createClient();
+  for (let i = 0; i < orderedLinkIds.length; i++) {
+    const { error } = await supabase
+      .from("costume_pieces")
+      .update({ ordre_habillage: i + 1 })
+      .eq("id", orderedLinkIds[i])
+      .eq("costume_id", costumeId);
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath(`/costumes/${costumeId}`);
+}

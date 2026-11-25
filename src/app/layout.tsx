@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Costume Inventory",
-  description: "Manage costume pieces, assemblies, and reservations",
+  title: "Inventaire de costumes",
+  description: "Gestion des pièces et costumes",
 };
 
 export default function RootLayout({
@@ -24,10 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,86 +1,42 @@
-# Costume Inventory — Supabase schema
+# Costume Inventory — Schéma Supabase
 
-Working model for the four core tables the app reads and writes. Column names are French to match domain language (`commandes`, etc.). After connecting the live Supabase project, regenerate types with the Supabase CLI if the remote schema differs.
+Tables utilisées par l’interface (colonnes confirmées pour l’UI).
 
 ```text
 costumes 1──* costume_pieces *──1 pieces
-costumes 1──* commandes
 ```
 
 ## `pieces`
 
-Individual wardrobe items (garments, accessories, props tracked as inventory).
-
-| Column | Type | Notes |
+| Colonne | Type | Notes |
 | --- | --- | --- |
-| `id` | `uuid` PK | Default `gen_random_uuid()` |
-| `nom` | `text` NOT NULL | Display name |
-| `description` | `text` | Optional detail |
-| `categorie` | `text` | e.g. haut, bas, accessoire |
-| `taille` | `text` | Size label |
-| `couleur` | `text` | Color |
-| `etat` | `text` | Physical condition |
-| `statut` | `text` / enum | `disponible` \| `reserve` \| `en_reparation` \| `retire` |
-| `emplacement` | `text` | Storage location |
-| `image_url` | `text` | Public or storage URL |
-| `notes` | `text` | Free-form |
-| `created_at` | `timestamptz` | Default `now()` |
-| `updated_at` | `timestamptz` | Default `now()` |
+| `id` | `uuid` PK | |
+| `nom` | `text` | Nom de la pièce |
+| `categorie` | `text` | Catégorie |
+| `stock_total` | `int` | Quantité en stock |
+| `photo_url` | `text` | URL publique (bucket `photos-pieces`) |
+| `notes` | `text` | Notes libres |
 
 ## `costumes`
 
-Named assemblies (looks / full outfits) composed of pieces.
-
-| Column | Type | Notes |
+| Colonne | Type | Notes |
 | --- | --- | --- |
-| `id` | `uuid` PK | Default `gen_random_uuid()` |
-| `nom` | `text` NOT NULL | Costume name |
-| `description` | `text` | Optional |
-| `personnage` | `text` | Character / role |
-| `production` | `text` | Show / film / event |
-| `image_url` | `text` | Optional hero image |
-| `notes` | `text` | Free-form |
-| `created_at` | `timestamptz` | Default `now()` |
-| `updated_at` | `timestamptz` | Default `now()` |
+| `id` | `uuid` PK | |
+| `nom` | `text` | Nom du costume |
+| `theme` | `text` | Thème |
+| `photo_url` | `text` | Image optionnelle |
+| `description` | `text` | Description |
 
 ## `costume_pieces`
 
-Join table: which pieces belong to which costume (supports drag-and-drop ordering via `@dnd-kit`).
-
-| Column | Type | Notes |
+| Colonne | Type | Notes |
 | --- | --- | --- |
-| `id` | `uuid` PK | Default `gen_random_uuid()` |
-| `costume_id` | `uuid` FK → `costumes.id` | ON DELETE CASCADE |
-| `piece_id` | `uuid` FK → `pieces.id` | ON DELETE RESTRICT |
-| `quantite` | `int` | Default `1` |
-| `ordre` | `int` | Sort order in the costume |
-| `notes` | `text` | Optional |
-| `created_at` | `timestamptz` | Default `now()` |
+| `id` | `uuid` PK | |
+| `costume_id` | `uuid` FK → `costumes.id` | |
+| `piece_id` | `uuid` FK → `pieces.id` | |
+| `quantite_par_costume` | `int` | Quantité de la pièce dans le costume |
+| `ordre_habillage` | `int` | Ordre d’habillage (glisser-déposer) |
 
-Unique recommendation: `(costume_id, piece_id)` when a piece should appear once per costume.
+## Stockage
 
-## `commandes`
-
-Reservations / rental orders against costumes (and by extension their pieces).
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | Default `gen_random_uuid()` |
-| `reference` | `text` | Human-readable order id |
-| `client_nom` | `text` | Client / production contact name |
-| `client_contact` | `text` | Email or phone |
-| `date_debut` | `date` | Loan start |
-| `date_fin` | `date` | Loan end |
-| `statut` | `text` / enum | `brouillon` \| `confirmee` \| `en_cours` \| `retournee` \| `annulee` |
-| `costume_id` | `uuid` FK → `costumes.id` | Optional until confirmed |
-| `notes` | `text` | Free-form |
-| `created_at` | `timestamptz` | Default `now()` |
-| `updated_at` | `timestamptz` | Default `now()` |
-
-## App access
-
-- Client + server helpers: `src/lib/supabase/`
-- Typed rows: `src/types/database.ts`
-- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.local.example`)
-
-RLS policies should allow the anon (or authenticated) role to `select` / `insert` / `update` / `delete` on these four tables according to product rules.
+Bucket Storage public : **`photos-pieces`** — photos des pièces ; l’URL publique est enregistrée dans `pieces.photo_url`.
