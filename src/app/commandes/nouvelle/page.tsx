@@ -1,17 +1,19 @@
 export const instant = false;
 
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { CommandeForm } from "@/components/CommandeForm";
 import { AppNav } from "@/components/AppNav";
 import { PageShell } from "@/components/ui";
+import { loadTableRows } from "@/lib/supabase/load";
 
 export default async function NouvelleCommandePage() {
-  const supabase = await createClient();
-  const { data: costumes } = await supabase
-    .from("costumes")
-    .select("id, nom, theme")
-    .order("nom");
+  const { rows: costumes } = await loadTableRows<{
+    id: string;
+    nom: string;
+    theme: string | null;
+  }>((supabase) =>
+    supabase.from("costumes").select("id, nom, theme").order("nom"),
+  );
 
   return (
     <>

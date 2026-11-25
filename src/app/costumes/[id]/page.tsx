@@ -2,7 +2,6 @@ export const instant = false;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import {
   addPieceToCostume,
   deleteCostume,
@@ -18,16 +17,34 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ui";
+import { getSupabaseOrNull } from "@/lib/supabase/load";
 import type { CostumePieceWithPiece } from "@/types/database";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function CostumeDetailPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getSupabaseOrNull();
+  if (!supabase) {
+    return (
+      <>
+        <AppNav />
+        <PageShell title="Costume">
+          <p className="text-sm text-red-600">
+            Connexion Supabase indisponible.
+          </p>
+        </PageShell>
+      </>
+    );
+  }
 
-  const [{ data: costume, error }, { data: links }, { data: allPieces }] =
-    await Promise.all([
+  let costume = null;
+  let links = null;
+  let allPieces = null;
+  let errorMessage: string | null = null;
+
+  try {
+    const [costumeRes, linksRes, piecesRes] = await Promise.all([
       supabase.from("costumes").select("*").eq("id", id).maybeSingle(),
       supabase
         .from("costume_pieces")
@@ -38,13 +55,20 @@ export default async function CostumeDetailPage({ params }: Props) {
         .order("ordre_habillage", { ascending: true }),
       supabase.from("pieces").select("id, nom, categorie").order("nom"),
     ]);
+    costume = costumeRes.data;
+    links = linksRes.data;
+    allPieces = piecesRes.data;
+    if (costumeRes.error) errorMessage = costumeRes.error.message;
+  } catch (err) {
+    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+  }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <>
         <AppNav />
         <PageShell title="Costume">
-          <p className="text-sm text-red-600">{error.message}</p>
+          <p className="text-sm text-red-600">{errorMessage}</p>
         </PageShell>
       </>
     );

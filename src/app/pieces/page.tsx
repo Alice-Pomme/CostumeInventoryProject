@@ -1,31 +1,27 @@
 export const instant = false;
 
-import { createClient } from "@/lib/supabase/server";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { AppNav } from "@/components/AppNav";
 import { PiecesInventory } from "@/components/PiecesInventory";
 import { PageShell } from "@/components/ui";
+import { loadTableRows } from "@/lib/supabase/load";
+
+type PieceRow = {
+  id: string;
+  nom: string;
+  categorie: string | null;
+  stock_total: number | null;
+  photo_url: string | null;
+  notes: string | null;
+};
 
 export default async function PiecesPage() {
-  let pieces: {
-    id: string;
-    nom: string;
-    categorie: string | null;
-    stock_total: number | null;
-    photo_url: string | null;
-    notes: string | null;
-  }[] = [];
-  let errorMessage: string | null = null;
-
-  if (hasSupabaseEnv()) {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("pieces")
-      .select("id, nom, categorie, stock_total, photo_url, notes")
-      .order("nom");
-    pieces = data ?? [];
-    if (error) errorMessage = error.message;
-  }
+  const { rows: pieces, errorMessage } = await loadTableRows<PieceRow>(
+    (supabase) =>
+      supabase
+        .from("pieces")
+        .select("id, nom, categorie, stock_total, photo_url, notes")
+        .order("nom"),
+  );
 
   return (
     <>

@@ -2,17 +2,27 @@ export const instant = false;
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { createCostume } from "@/app/actions/costumes";
 import { AppNav } from "@/components/AppNav";
 import { Button, Field, PageShell, TextArea, TextInput } from "@/components/ui";
+import { loadTableRows } from "@/lib/supabase/load";
+
+type CostumeRow = {
+  id: string;
+  nom: string;
+  theme: string | null;
+  photo_url: string | null;
+  description: string | null;
+};
 
 export default async function CostumesPage() {
-  const supabase = await createClient();
-  const { data: costumes, error } = await supabase
-    .from("costumes")
-    .select("id, nom, theme, photo_url, description")
-    .order("nom");
+  const { rows: costumes, errorMessage } = await loadTableRows<CostumeRow>(
+    (supabase) =>
+      supabase
+        .from("costumes")
+        .select("id, nom, theme, photo_url, description")
+        .order("nom"),
+  );
 
   return (
     <>
@@ -21,9 +31,9 @@ export default async function CostumesPage() {
         title="Costumes"
         description="Assembler des costumes à partir des pièces."
       >
-        {error ? (
+        {errorMessage ? (
           <p className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-            Impossible de charger les costumes : {error.message}
+            Impossible de charger les costumes : {errorMessage}
           </p>
         ) : null}
 
@@ -57,9 +67,9 @@ export default async function CostumesPage() {
 
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Liste ({costumes?.length ?? 0})
+            Liste ({costumes.length})
           </h2>
-          {!costumes?.length ? (
+          {!costumes.length ? (
             <p className="text-sm text-zinc-500">Aucun costume pour le moment.</p>
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">

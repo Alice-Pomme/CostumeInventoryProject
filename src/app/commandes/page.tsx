@@ -2,9 +2,9 @@ export const instant = false;
 
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { AppNav } from "@/components/AppNav";
 import { PageShell } from "@/components/ui";
+import { loadTableRows } from "@/lib/supabase/load";
 import {
   COMMANDE_STATUT_LABELS,
   type CommandeStatut,
@@ -12,15 +12,22 @@ import {
 } from "@/types/database";
 
 export default async function CommandesPage() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("commandes")
-    .select(
-      "id, client_nom, costume_id, quantite_costumes, date_debut, date_fin, statut, costumes(id, nom, theme)",
-    )
-    .order("date_debut", { ascending: false });
+  const { rows, errorMessage } = await loadTableRows<CommandeWithCostume>(
+    async (supabase) => {
+      const result = await supabase
+        .from("commandes")
+        .select(
+          "id, client_nom, costume_id, quantite_costumes, date_debut, date_fin, statut, costumes(id, nom, theme)",
+        )
+        .order("date_debut", { ascending: false });
+      return {
+        data: (result.data ?? null) as unknown as CommandeWithCostume[] | null,
+        error: result.error,
+      };
+    },
+  );
 
-  const commandes = (data ?? []) as unknown as CommandeWithCostume[];
+  const commandes = rows;
 
   return (
     <>
@@ -38,9 +45,9 @@ export default async function CommandesPage() {
           </Link>
         }
       >
-        {error ? (
+        {errorMessage ? (
           <p className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-            Impossible de charger les commandes : {error.message}
+            Impossible de charger les commandes : {errorMessage}
           </p>
         ) : null}
 

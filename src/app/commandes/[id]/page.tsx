@@ -2,29 +2,47 @@ export const instant = false;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { deleteCommande } from "@/app/actions/commandes";
 import { CommandeForm } from "@/components/CommandeForm";
 import { AppNav } from "@/components/AppNav";
 import { Button, PageShell } from "@/components/ui";
+import { getSupabaseOrNull, loadTableRows } from "@/lib/supabase/load";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function CommandeDetailPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getSupabaseOrNull();
+  if (!supabase) notFound();
 
-  const [{ data: commande, error }, { data: costumes }] = await Promise.all([
-    supabase.from("commandes").select("*").eq("id", id).maybeSingle(),
-    supabase.from("costumes").select("id, nom, theme").order("nom"),
-  ]);
+  let commande = null;
+  let errorMessage: string | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("commandes")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    commande = data;
+    if (error) errorMessage = error.message;
+  } catch (err) {
+    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+  }
 
-  if (error) {
+  const { rows: costumes } = await loadTableRows<{
+    id: string;
+    nom: string;
+    theme: string | null;
+  }>((client) =>
+    client.from("costumes").select("id, nom, theme").order("nom"),
+  );
+
+  if (errorMessage) {
     return (
       <>
         <AppNav />
         <PageShell title="Commande">
-          <p className="text-sm text-red-600">{error.message}</p>
+          <p className="text-sm text-red-600">{errorMessage}</p>
         </PageShell>
       </>
     );

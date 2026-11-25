@@ -2,7 +2,6 @@ export const instant = false;
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import {
   deletePiece,
   updatePiece,
@@ -10,24 +9,35 @@ import {
 } from "@/app/actions/pieces";
 import { AppNav } from "@/components/AppNav";
 import { Button, Field, PageShell, TextArea, TextInput } from "@/components/ui";
+import { getSupabaseOrNull } from "@/lib/supabase/load";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function PieceDetailPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: piece, error } = await supabase
-    .from("pieces")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const supabase = await getSupabaseOrNull();
+  if (!supabase) notFound();
 
-  if (error) {
+  let piece = null;
+  let errorMessage: string | null = null;
+  try {
+    const { data, error } = await supabase
+      .from("pieces")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    piece = data;
+    if (error) errorMessage = error.message;
+  } catch (err) {
+    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+  }
+
+  if (errorMessage) {
     return (
       <>
         <AppNav />
         <PageShell title="Pièce">
-          <p className="text-sm text-red-600">{error.message}</p>
+          <p className="text-sm text-red-600">{errorMessage}</p>
         </PageShell>
       </>
     );
