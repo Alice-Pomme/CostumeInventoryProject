@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseUrl, hasSupabaseEnv } from "@/lib/supabase/env";
 
+export const dynamic = "force-dynamic";
+
 const EXPECTED_HOST = "aajszyvzngnfmkqrffek.supabase.co";
 const TABLES = ["pieces", "costumes", "costume_pieces", "commandes"] as const;
 

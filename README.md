@@ -26,7 +26,7 @@ Helpers live under `src/lib/supabase/`:
 
 - `client.ts` — browser client
 - `server.ts` — Server Components / Route Handlers
-- `middleware.ts` + root `src/middleware.ts` — session refresh
+- `middleware.ts` — optional session-refresh helper (not wired at the root; add later when auth is needed)
 
 Schema for `pieces`, `costumes`, `costume_pieces`, and `commandes`: see [docs/schema.md](docs/schema.md). Typed rows: `src/types/database.ts`.
 
