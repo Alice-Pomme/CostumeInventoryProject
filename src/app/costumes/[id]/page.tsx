@@ -8,7 +8,7 @@ import {
   deleteCostume,
   updateCostume,
 } from "@/app/actions/costumes";
-import { CostumePiecesEditor } from "@/components/CostumePiecesEditor";
+import { CostumeHabillagePanel } from "@/components/CostumeHabillagePanel";
 import { AppNav } from "@/components/AppNav";
 import {
   Button,
@@ -53,24 +53,26 @@ export default async function CostumeDetailPage({ params }: Props) {
 
   const linkedIds = new Set((links ?? []).map((l) => l.piece_id));
   const availablePieces = (allPieces ?? []).filter((p) => !linkedIds.has(p.id));
-  const items = (links ?? []) as CostumePieceWithPiece[];
+  const items = (links ?? []) as unknown as CostumePieceWithPiece[];
 
   return (
     <>
-      <AppNav />
+      <div className="print:hidden">
+        <AppNav />
+      </div>
       <PageShell
         title={costume.nom}
-        description="Modifier le costume et l’ordre d’habillage des pièces."
+        description="Modifier le costume, l’ordre d’habillage et imprimer la fiche."
         actions={
           <Link
             href="/costumes"
-            className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
+            className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400 print:hidden"
           >
             ← Retour aux costumes
           </Link>
         }
       >
-        <section className="mb-10">
+        <section className="mb-10 print:hidden">
           <form
             action={updateCostume.bind(null, costume.id)}
             className="grid gap-4 sm:grid-cols-2"
@@ -106,18 +108,15 @@ export default async function CostumeDetailPage({ params }: Props) {
           </form>
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Pièces du costume
-          </h2>
-          <p className="mb-4 text-sm text-zinc-500">
-            Glissez pour définir l’ordre d’habillage. Ajustez la quantité par
-            costume.
-          </p>
-          <CostumePiecesEditor costumeId={costume.id} items={items} />
-        </section>
+        <CostumeHabillagePanel
+          costumeId={costume.id}
+          costumeNom={costume.nom}
+          theme={costume.theme}
+          description={costume.description}
+          items={items}
+        />
 
-        <section>
+        <section className="mt-10 print:hidden">
           <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             Ajouter une pièce
           </h2>

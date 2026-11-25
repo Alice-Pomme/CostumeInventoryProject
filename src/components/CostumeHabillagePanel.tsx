@@ -25,6 +25,7 @@ import {
   reorderCostumePieces,
   updateCostumePiece,
 } from "@/app/actions/costumes";
+import { FicheHabillage } from "@/components/FicheHabillage";
 import { Button, Field, TextInput } from "@/components/ui";
 
 function SortableRow({
@@ -53,25 +54,35 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={`flex flex-wrap items-center gap-3 border-b border-zinc-200 py-3 dark:border-zinc-800 ${
-        isDragging ? "opacity-70" : ""
+        isDragging ? "bg-zinc-50 opacity-80 dark:bg-zinc-900" : ""
       }`}
     >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+        {item.ordre_habillage ?? "—"}
+      </span>
       <button
         type="button"
-        className="cursor-grab touch-none rounded p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-        aria-label="Réordonner"
+        className="cursor-grab touch-none rounded p-1 text-zinc-400 hover:text-zinc-700 active:cursor-grabbing dark:hover:text-zinc-200"
+        aria-label={`Déplacer ${item.pieces?.nom ?? "la pièce"}`}
         {...attributes}
         {...listeners}
       >
         <GripVertical className="h-4 w-4" />
       </button>
+      {item.pieces?.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.pieces.photo_url}
+          alt=""
+          className="h-10 w-10 rounded object-cover"
+        />
+      ) : null}
       <div className="min-w-0 flex-1">
         <p className="font-medium text-zinc-900 dark:text-zinc-50">
           {item.pieces?.nom ?? "Pièce inconnue"}
         </p>
         <p className="text-xs text-zinc-500">
-          {item.pieces?.categorie ?? "Sans catégorie"} · ordre{" "}
-          {item.ordre_habillage ?? "—"}
+          {item.pieces?.categorie ?? "Sans catégorie"}
         </p>
       </div>
       <form
@@ -100,17 +111,27 @@ function SortableRow({
   );
 }
 
-export function CostumePiecesEditor({
+export function CostumeHabillagePanel({
   costumeId,
+  costumeNom,
+  theme,
+  description,
   items,
 }: {
   costumeId: string;
+  costumeNom: string;
+  theme?: string | null;
+  description?: string | null;
   items: CostumePieceWithPiece[];
 }) {
-  const [optimistic, setOptimistic] = useOptimistic(items);
-  const [, startTransition] = useTransition();
+  const sorted = [...items].sort(
+    (a, b) => (a.ordre_habillage ?? 0) - (b.ordre_habillage ?? 0),
+  );
+  const [optimistic, setOptimistic] = useOptimistic(sorted);
+  const [pending, startTransition] = useTransition();
+
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -119,13 +140,16 @@ export function CostumePiecesEditor({
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
     const oldIndex = optimistic.findIndex((i) => i.id === active.id);
     const newIndex = optimistic.findIndex((i) => i.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
+
     const next = arrayMove(optimistic, oldIndex, newIndex).map((item, idx) => ({
       ...item,
       ordre_habillage: idx + 1,
     }));
+
     startTransition(async () => {
       setOptimistic(next);
       await reorderCostumePieces(
@@ -135,30 +159,52 @@ export function CostumePiecesEditor({
     });
   }
 
-  if (optimistic.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        Aucune pièce liée. Ajoutez-en ci-dessous.
-      </p>
-    );
-  }
-
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
-    >
-      <SortableContext
-        items={optimistic.map((i) => i.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <ul className="divide-y-0">
-          {optimistic.map((item) => (
-            <SortableRow key={item.id} item={item} costumeId={costumeId} />
-          ))}
-        </ul>
-      </SortableContext>
-    </DndContext>
+    <div className="space-y-10">
+      <section className="print:hidden">
+        <h2 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          Ordre d’habillage
+        </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          Glissez les pièces pour définir l’ordre (1, 2, 3…). L’ordre est
+          enregistré automatiquement dans Supabase.
+          {pending ? " Enregistrement…" : ""}
+        </p>
+
+        {optimistic.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            Aucune pièce liée. Ajoutez-en ci-dessous.
+          </p>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+          >
+            <SortableContext
+              items={optimistic.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul>
+                {optimistic.map((item) => (
+                  <SortableRow
+                    key={item.id}
+                    item={item}
+                    costumeId={costumeId}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
+      </section>
+
+      <FicheHabillage
+        costumeNom={costumeNom}
+        theme={theme}
+        description={description}
+        items={optimistic}
+      />
+    </div>
   );
 }

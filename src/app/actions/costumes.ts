@@ -99,7 +99,8 @@ export async function updateCostumePiece(
   const { error } = await supabase
     .from("costume_pieces")
     .update({ quantite_par_costume: quantite })
-    .eq("id", linkId);
+    .eq("id", linkId)
+    .eq("costume_id", costumeId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/costumes/${costumeId}`);
@@ -110,24 +111,32 @@ export async function removePieceFromCostume(linkId: string, costumeId: string) 
   const { error } = await supabase
     .from("costume_pieces")
     .delete()
-    .eq("id", linkId);
+    .eq("id", linkId)
+    .eq("costume_id", costumeId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/costumes/${costumeId}`);
 }
 
+/** Persist 1-based ordre_habillage for every link in the costume. */
 export async function reorderCostumePieces(
   costumeId: string,
   orderedLinkIds: string[],
 ) {
   const supabase = await createClient();
-  for (let i = 0; i < orderedLinkIds.length; i++) {
-    const { error } = await supabase
-      .from("costume_pieces")
-      .update({ ordre_habillage: i + 1 })
-      .eq("id", orderedLinkIds[i])
-      .eq("costume_id", costumeId);
-    if (error) throw new Error(error.message);
-  }
+
+  const results = await Promise.all(
+    orderedLinkIds.map((linkId, index) =>
+      supabase
+        .from("costume_pieces")
+        .update({ ordre_habillage: index + 1 })
+        .eq("id", linkId)
+        .eq("costume_id", costumeId),
+    ),
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(failed.error.message);
+
   revalidatePath(`/costumes/${costumeId}`);
 }
