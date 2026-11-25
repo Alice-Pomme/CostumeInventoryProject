@@ -37,8 +37,9 @@ export async function createPieceForm(formData: FormData): Promise<void> {
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Échec de l’enregistrement.");
+    throw new Error("Échec de l’enregistrement. Vérifiez Supabase.");
   }
 
-  redirect(`/pieces/${data.id}`);
+  // Stay on the list after create — detail used to crash the host after save.
+  redirect("/pieces");
 }
