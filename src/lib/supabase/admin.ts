@@ -6,7 +6,7 @@ import { requireServiceRoleEnv } from "./env";
 
 /**
  * Supabase client using the service role key (bypasses RLS).
- * Used only from Server Components, route handlers, and server actions.
+ * Call only after requireViewer / requireIdentity — never from unauthenticated handlers.
  */
 export function createServiceClient() {
   const { url, serviceRoleKey } = requireServiceRoleEnv();

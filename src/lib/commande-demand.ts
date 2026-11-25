@@ -1,3 +1,4 @@
+import { friendlyDbError } from "@/lib/db-errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildPieceBesoins,
@@ -34,7 +35,7 @@ export async function computeCommandePieceBesoins(
     .select("piece_id, quantite_par_costume")
     .eq("costume_id", input.costumeId);
 
-  if (linksError) return { besoins: [], error: linksError.message };
+  if (linksError) return { besoins: [], error: friendlyDbError(linksError.message) };
   if (!links?.length) {
     return {
       besoins: [],
@@ -62,7 +63,7 @@ export async function computeCommandePieceBesoins(
     .not("statut", "eq", "annulee")
     .not("statut", "eq", "terminee");
 
-  if (cmdError) return { besoins: [], error: cmdError.message };
+  if (cmdError) return { besoins: [], error: friendlyDbError(cmdError.message) };
 
   const overlapping = (autres ?? []).filter((c) => {
     if (input.excludeCommandeId && c.id === input.excludeCommandeId) {
@@ -89,7 +90,7 @@ export async function computeCommandePieceBesoins(
       .select("costume_id, piece_id, quantite_par_costume")
       .in("costume_id", costumeIds);
 
-    if (olError) return { besoins: [], error: olError.message };
+    if (olError) return { besoins: [], error: friendlyDbError(olError.message) };
 
     const linksByCostume = new Map<
       string,
@@ -121,7 +122,7 @@ export async function computeCommandePieceBesoins(
     .select("id, nom, categorie, stock_total")
     .in("id", pieceIds);
 
-  if (piecesError) return { besoins: [], error: piecesError.message };
+  if (piecesError) return { besoins: [], error: friendlyDbError(piecesError.message) };
 
   return {
     besoins: buildPieceBesoins({

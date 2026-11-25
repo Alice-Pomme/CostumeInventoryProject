@@ -23,7 +23,18 @@ export function PiecesClient() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/pieces", { cache: "no-store" });
+        const res = await fetch("/api/pieces", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (res.status === 401) {
+          if (!cancelled) {
+            setPieces([]);
+            setLoadError("Connexion Cursor requise pour charger les pièces.");
+            setLoading(false);
+          }
+          return;
+        }
         const body = (await res.json()) as {
           ok?: boolean;
           pieces?: PieceRow[];

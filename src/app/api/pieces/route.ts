@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireViewerOrResponse } from "@/lib/auth/require-viewer";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
+
+const NO_STORE = { "Cache-Control": "private, no-store" };
 
 type PieceDto = {
   id: string;
@@ -41,12 +44,20 @@ function toPiece(row: Record<string, unknown>): PieceDto | null {
   };
 }
 
-/** JSON list for the client pieces UI — avoids RSC + connection() on /pieces. */
-export async function GET() {
+/** JSON list for the client pieces UI — requires a signed-in Cursor viewer. */
+export async function GET(request: Request) {
+  const identity = await requireViewerOrResponse(request);
+  if (identity instanceof Response) {
+    return new NextResponse(identity.body, {
+      status: identity.status,
+      headers: { ...NO_STORE, "Content-Type": "application/json" },
+    });
+  }
+
   if (!hasSupabaseEnv()) {
     return NextResponse.json(
       { ok: false, pieces: [] as PieceDto[], error: "not_configured" },
-      { status: 503 },
+      { status: 503, headers: NO_STORE },
     );
   }
 
@@ -58,10 +69,10 @@ export async function GET() {
       .order("nom");
 
     if (error) {
-      console.error("GET /api/pieces:", error.message);
+      console.error("GET /api/pieces query failed");
       return NextResponse.json(
         { ok: false, pieces: [] as PieceDto[], error: "query_failed" },
-        { status: 502 },
+        { status: 502, headers: NO_STORE },
       );
     }
 
@@ -69,12 +80,15 @@ export async function GET() {
       .map((row) => toPiece(row as Record<string, unknown>))
       .filter((p): p is PieceDto => p != null);
 
-    return NextResponse.json({ ok: true, pieces, error: null });
+    return NextResponse.json(
+      { ok: true, pieces, error: null },
+      { headers: NO_STORE },
+    );
   } catch (err) {
     console.error("GET /api/pieces threw:", err);
     return NextResponse.json(
       { ok: false, pieces: [] as PieceDto[], error: "unexpected" },
-      { status: 500 },
+      { status: 500, headers: NO_STORE },
     );
   }
 }

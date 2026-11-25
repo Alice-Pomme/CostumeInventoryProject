@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { friendlyDbError } from "@/lib/db-errors";
 import { createClient } from "@/lib/supabase/server";
 import { computeCommandePieceBesoins } from "@/lib/commande-demand";
 import type { CommandeStatut, PieceBesoin } from "@/types/database";
@@ -53,7 +54,7 @@ export async function createCommande(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/commandes");
   redirect(`/commandes/${data.id}`);
 }
@@ -88,7 +89,7 @@ export async function updateCommande(commandeId: string, formData: FormData) {
     })
     .eq("id", commandeId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/commandes");
   revalidatePath(`/commandes/${commandeId}`);
 }
@@ -99,7 +100,7 @@ export async function deleteCommande(commandeId: string) {
     .from("commandes")
     .delete()
     .eq("id", commandeId);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/commandes");
   redirect("/commandes");
 }

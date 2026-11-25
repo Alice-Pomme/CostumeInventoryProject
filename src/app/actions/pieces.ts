@@ -2,11 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  requireViewer,
+  unauthorizedMessage,
+} from "@/lib/auth/require-viewer";
+import { friendlyDbError } from "@/lib/db-errors";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { PHOTOS_PIECES_BUCKET } from "@/types/database";
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_PHOTOS_PER_PIECE = 8;
 const ALLOWED_PHOTO_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -37,31 +43,6 @@ function emptyToNull(value: FormDataEntryValue | null): string | null {
   return s.length ? s : null;
 }
 
-function friendlyDbError(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("relation") && lower.includes("does not exist")) {
-    return "La table « pieces » n’existe pas encore. Réexécutez docs/sql/schema.sql dans Supabase.";
-  }
-  if (
-    lower.includes("row-level security") ||
-    lower.includes("rls") ||
-    lower.includes("new row violates")
-  ) {
-    return "Accès refusé par RLS. Vérifiez SUPABASE_SERVICE_ROLE_KEY et docs/sql/schema.sql.";
-  }
-  if (lower.includes("invalid api key") || lower.includes("jwt")) {
-    return "Clé Supabase invalide. Vérifiez SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.";
-  }
-  if (lower.includes("permission denied") || lower.includes("42501")) {
-    return "Permission refusée sur « pieces ». Vérifiez le rôle service et RLS.";
-  }
-  if (lower.includes("bucket") || lower.includes("not found")) {
-    return "Bucket Storage « photos-pieces » introuvable ou inaccessible.";
-  }
-  // Never surface raw Postgres/PostgREST strings to the UI.
-  return "Erreur base de données. Réessayez ou vérifiez la configuration Supabase.";
-}
-
 function getPhotoFile(formData: FormData): File | null {
   const photo = formData.get("photo");
   if (!(photo instanceof File) || photo.size === 0) return null;
@@ -80,30 +61,44 @@ async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
   const ext =
     file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
     "jpg";
-  const path = `${pieceId}/${Date.now()}.${ext}`;
+  const objectPath = `${pieceId}/${Date.now()}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const supabase = createServiceClient();
+
+  const { data: existing, error: listError } = await supabase.storage
+    .from(PHOTOS_PIECES_BUCKET)
+    .list(pieceId, { limit: MAX_PHOTOS_PER_PIECE + 1 });
+  if (listError) {
+    throw new Error(friendlyDbError(listError.message));
+  }
+  if ((existing?.length ?? 0) >= MAX_PHOTOS_PER_PIECE) {
+    throw new Error(
+      `Limite de ${MAX_PHOTOS_PER_PIECE} photos atteinte pour cette pièce.`,
+    );
+  }
+
   const { error: uploadError } = await supabase.storage
     .from(PHOTOS_PIECES_BUCKET)
-    .upload(path, bytes, {
+    .upload(objectPath, bytes, {
       contentType: type,
       upsert: true,
     });
 
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    throw new Error(friendlyDbError(uploadError.message));
+  }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(PHOTOS_PIECES_BUCKET).getPublicUrl(path);
+  // Private bucket — serve via authenticated proxy, not a public URL.
+  const appPath = `/api/piece-photo/${objectPath}`;
 
   const { error } = await supabase
     .from("pieces")
-    .update({ photo_url: publicUrl })
+    .update({ photo_url: appPath })
     .eq("id", pieceId);
 
-  if (error) throw new Error(error.message);
-  return publicUrl;
+  if (error) throw new Error(friendlyDbError(error.message));
+  return appPath;
 }
 
 export async function createPiece(
@@ -111,6 +106,7 @@ export async function createPiece(
   formData: FormData,
 ): Promise<PieceActionState> {
   try {
+    await requireViewer();
     if (!hasSupabaseEnv()) {
       return {
         error:
@@ -153,9 +149,10 @@ export async function createPiece(
       try {
         photo_url = await storePiecePhoto(data.id, photo);
       } catch (err) {
-        photoWarning = friendlyDbError(
-          err instanceof Error ? err.message : "Échec du téléversement photo.",
-        );
+        photoWarning =
+          err instanceof Error
+            ? err.message
+            : "Échec du téléversement photo.";
       }
     }
 
@@ -172,8 +169,7 @@ export async function createPiece(
 
     return { error: null, createdId: created.id, created, photoWarning };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erreur inattendue.";
-    return { error: friendlyDbError(message) };
+    return { error: unauthorizedMessage(err) };
   }
 }
 
@@ -183,6 +179,7 @@ export async function updatePiece(
   formData: FormData,
 ): Promise<PieceActionState> {
   try {
+    await requireViewer();
     if (!hasSupabaseEnv()) {
       return { error: "Connexion Supabase absente." };
     }
@@ -212,7 +209,7 @@ export async function updatePiece(
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Échec du téléversement photo.";
-        return { error: friendlyDbError(message) };
+        return { error: message };
       }
     }
 
@@ -220,13 +217,13 @@ export async function updatePiece(
     revalidatePath(`/pieces/${pieceId}`);
     return { error: null };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erreur inattendue.";
-    return { error: friendlyDbError(message) };
+    return { error: unauthorizedMessage(err) };
   }
 }
 
 export async function deletePiece(pieceId: string): Promise<void> {
   try {
+    await requireViewer();
     if (!hasSupabaseEnv()) {
       redirect("/pieces?error=" + encodeURIComponent("Connexion Supabase absente."));
     }
@@ -238,13 +235,14 @@ export async function deletePiece(pieceId: string): Promise<void> {
       );
     }
   } catch (err) {
-    // redirect() throws — rethrow those; otherwise soft-fail to list.
-    const digest = err && typeof err === "object" && "digest" in err
-      ? String((err as { digest?: unknown }).digest)
-      : "";
+    const digest =
+      err && typeof err === "object" && "digest" in err
+        ? String((err as { digest?: unknown }).digest)
+        : "";
     if (digest.startsWith("NEXT_REDIRECT")) throw err;
-    const message = err instanceof Error ? err.message : "Erreur inattendue.";
-    redirect("/pieces?error=" + encodeURIComponent(friendlyDbError(message)));
+    redirect(
+      "/pieces?error=" + encodeURIComponent(unauthorizedMessage(err)),
+    );
   }
   revalidatePath("/pieces");
   redirect("/pieces");
@@ -256,6 +254,7 @@ export async function uploadPiecePhoto(
   formData: FormData,
 ): Promise<PieceActionState> {
   try {
+    await requireViewer();
     const file = getPhotoFile(formData);
     if (!file) {
       return { error: "Choisissez une photo." };
@@ -265,8 +264,6 @@ export async function uploadPiecePhoto(
     revalidatePath("/pieces");
     return { error: null };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Échec du téléversement photo.";
-    return { error: friendlyDbError(message) };
+    return { error: unauthorizedMessage(err) };
   }
 }

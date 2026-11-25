@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireViewer, unauthorizedMessage } from "@/lib/auth/require-viewer";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
@@ -15,6 +16,12 @@ function emptyToNull(value: FormDataEntryValue | null): string | null {
  * Kept in its own file so /pieces does not pull in photo/storage code.
  */
 export async function createPieceForm(formData: FormData): Promise<void> {
+  try {
+    await requireViewer();
+  } catch (err) {
+    throw new Error(unauthorizedMessage(err));
+  }
+
   if (!hasSupabaseEnv()) {
     throw new Error(
       "Connexion Supabase absente. Vérifiez SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY.",

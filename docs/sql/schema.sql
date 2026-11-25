@@ -100,9 +100,9 @@ drop policy if exists "commandes_insert_authenticated" on public.commandes;
 drop policy if exists "commandes_update_authenticated" on public.commandes;
 drop policy if exists "commandes_delete_authenticated" on public.commandes;
 
--- ── storage: public read for display URLs; writes via service role only ─
+-- ── storage: private bucket; app serves bytes via authenticated /api/piece-photo ─
 insert into storage.buckets (id, name, public)
-values ('photos-pieces', 'photos-pieces', true)
+values ('photos-pieces', 'photos-pieces', false)
 on conflict (id) do update set public = excluded.public;
 
 drop policy if exists "photos_pieces_public_read" on storage.objects;
@@ -111,8 +111,8 @@ drop policy if exists "photos_pieces_anon_update" on storage.objects;
 drop policy if exists "photos_pieces_anon_delete" on storage.objects;
 drop policy if exists "photos_pieces_authenticated_insert" on storage.objects;
 drop policy if exists "photos_pieces_authenticated_update" on storage.objects;
+drop policy if exists "photos_pieces_authenticated_select" on storage.objects;
 
--- Anyone may read objects (needed for <img src> public URLs).
--- Uploads/updates go through the server service role (bypasses storage RLS).
-create policy "photos_pieces_public_read" on storage.objects
-  for select to public using (bucket_id = 'photos-pieces');
+-- No anon/authenticated storage policies → denied by default.
+-- The private Cursor app reads/writes via the server service role only,
+-- after verifying the signed-in Cursor viewer (apps-identity).

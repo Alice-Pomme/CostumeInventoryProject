@@ -1,5 +1,5 @@
 /**
- * Allow only https image URLs for rendering in <img src>.
+ * Allow https image URLs, or same-app private photo proxy paths.
  * Rejects javascript:, data:, http, and malformed values.
  */
 export function safeImageSrc(
@@ -8,6 +8,11 @@ export function safeImageSrc(
   if (url == null) return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
+
+  // Authenticated proxy for private Storage objects.
+  if (/^\/api\/piece-photo\/[a-zA-Z0-9._/-]+$/.test(trimmed) && !trimmed.includes("..")) {
+    return trimmed;
+  }
 
   let parsed: URL;
   try {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { friendlyDbError } from "@/lib/db-errors";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeStoredImageUrl } from "@/lib/safe-image-url";
 
@@ -37,7 +38,7 @@ export async function createCostume(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/costumes");
   redirect(`/costumes/${data.id}`);
 }
@@ -57,7 +58,7 @@ export async function updateCostume(costumeId: string, formData: FormData) {
     })
     .eq("id", costumeId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/costumes");
   revalidatePath(`/costumes/${costumeId}`);
 }
@@ -65,7 +66,7 @@ export async function updateCostume(costumeId: string, formData: FormData) {
 export async function deleteCostume(costumeId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("costumes").delete().eq("id", costumeId);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/costumes");
   redirect("/costumes");
 }
@@ -96,7 +97,7 @@ export async function addPieceToCostume(costumeId: string, formData: FormData) {
     ordre_habillage: nextOrder,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath(`/costumes/${costumeId}`);
 }
 
@@ -113,7 +114,7 @@ export async function updateCostumePiece(
     .eq("id", linkId)
     .eq("costume_id", costumeId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath(`/costumes/${costumeId}`);
 }
 
@@ -125,7 +126,7 @@ export async function removePieceFromCostume(linkId: string, costumeId: string) 
     .eq("id", linkId)
     .eq("costume_id", costumeId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath(`/costumes/${costumeId}`);
 }
 
@@ -147,7 +148,7 @@ export async function reorderCostumePieces(
   );
 
   const failed = results.find((r) => r.error);
-  if (failed?.error) throw new Error(failed.error.message);
+  if (failed?.error) throw new Error(friendlyDbError(failed.error.message));
 
   revalidatePath(`/costumes/${costumeId}`);
 }
