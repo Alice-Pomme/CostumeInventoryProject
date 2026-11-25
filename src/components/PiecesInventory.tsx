@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { createPiece } from "@/app/actions/pieces";
+import { CategorieCombobox } from "@/components/CategorieCombobox";
+import { PhotoDropzone } from "@/components/PhotoDropzone";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 export type PieceRow = {
@@ -23,7 +25,13 @@ const COLUMNS = [
   { key: "notes", label: "Notes" },
 ] as const;
 
-export function PiecesInventory({ pieces }: { pieces: PieceRow[] }) {
+export function PiecesInventory({
+  pieces,
+  categories,
+}: {
+  pieces: PieceRow[];
+  categories: string[];
+}) {
   const [adding, setAdding] = useState(pieces.length === 0);
 
   return (
@@ -70,7 +78,7 @@ export function PiecesInventory({ pieces }: { pieces: PieceRow[] }) {
               <TextInput name="nom" required placeholder="Ex. Chemise blanche" />
             </Field>
             <Field label="Catégorie">
-              <TextInput name="categorie" placeholder="Ex. Haut" />
+              <CategorieCombobox options={categories} />
             </Field>
             <Field label="Stock total">
               <TextInput
@@ -84,15 +92,17 @@ export function PiecesInventory({ pieces }: { pieces: PieceRow[] }) {
               <TextArea name="notes" placeholder="Notes optionnelles" rows={1} />
             </Field>
             <div className="sm:col-span-2 lg:col-span-4">
+              <Field label="Photo">
+                <PhotoDropzone />
+              </Field>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4">
               <Button type="submit">
                 <Plus className="mr-1.5 h-4 w-4" />
                 Enregistrer la pièce
               </Button>
             </div>
           </form>
-          <p className="mt-3 text-xs text-zinc-500">
-            La photo se téléverse ensuite depuis la fiche de la pièce.
-          </p>
         </section>
       ) : null}
 

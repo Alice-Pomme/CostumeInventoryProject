@@ -14,6 +14,20 @@ type PieceRow = {
   notes: string | null;
 };
 
+function categoriesFromPieces(pieces: PieceRow[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const piece of pieces) {
+    const cat = piece.categorie?.trim();
+    if (!cat) continue;
+    const key = cat.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cat);
+  }
+  return out;
+}
+
 export default async function PiecesPage() {
   const { rows: pieces, errorMessage } = await loadTableRows<PieceRow>(
     (supabase) =>
@@ -36,7 +50,10 @@ export default async function PiecesPage() {
           </p>
         ) : null}
 
-        <PiecesInventory pieces={pieces} />
+        <PiecesInventory
+          pieces={pieces}
+          categories={categoriesFromPieces(pieces)}
+        />
       </PageShell>
     </>
   );
