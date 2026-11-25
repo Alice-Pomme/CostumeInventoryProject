@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Server-only Supabase env resolution.
  * Do not use NEXT_PUBLIC_* for keys — those would ship to the browser.
