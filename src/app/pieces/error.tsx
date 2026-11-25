@@ -16,16 +16,26 @@ export default function PiecesError({
     console.error("Pieces route error:", error);
   }, [error]);
 
+  const digest =
+    typeof error.digest === "string" ? error.digest : undefined;
+  const message =
+    error instanceof Error && error.message
+      ? error.message.replace(/^Minified React error #\d+;.*/i, "").trim()
+      : "";
+
   return (
     <>
       <AppNav />
       <PageShell title="Erreur — Pièces">
-        <p className="mb-4 text-sm text-red-700 dark:text-red-300">
-          Impossible d’afficher cette page.{" "}
-          {error.message
-            ? `(${error.message})`
-            : "Erreur serveur inattendue."}
+        <p className="mb-2 text-sm text-red-700 dark:text-red-300">
+          Impossible d’afficher cette page.
+          {message && !message.includes("react.dev/errors")
+            ? ` ${message}`
+            : " Une erreur serveur s’est produite pendant le rendu."}
         </p>
+        {digest ? (
+          <p className="mb-4 text-xs text-zinc-500">Réf. {digest}</p>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           <Button type="button" onClick={reset}>
             Réessayer

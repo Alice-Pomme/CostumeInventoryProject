@@ -82,14 +82,22 @@ export function PieceEditForm({
           className="grid gap-4 sm:grid-cols-2"
         >
           <Field label="Nom *">
-            <TextInput name="nom" required defaultValue={piece.nom} />
+            <TextInput
+              name="nom"
+              required
+              defaultValue={piece.nom}
+              autoComplete="off"
+            />
           </Field>
-          <Field label="Catégorie">
+          <div className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+              Catégorie
+            </span>
             <CategorieCombobox
               options={categories}
               defaultValue={piece.categorie ?? ""}
             />
-          </Field>
+          </div>
           <Field label="Stock total">
             <TextInput
               name="stock_total"

@@ -14,23 +14,59 @@ type Props = {
 
 export default async function PieceDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { photoError } = await searchParams;
-  const supabase = await getSupabaseOrNull();
-  if (!supabase) notFound();
+  const sp = await searchParams;
+  const photoError =
+    typeof sp.photoError === "string" ? sp.photoError : null;
 
-  let piece = null;
+  const supabase = await getSupabaseOrNull();
+  if (!supabase) {
+    return (
+      <>
+        <AppNav />
+        <PageShell title="Pièce">
+          <p className="text-sm text-red-600">
+            Connexion Supabase indisponible. Vérifiez SUPABASE_URL et
+            SUPABASE_SERVICE_ROLE_KEY.
+          </p>
+          <Link href="/pieces" className="mt-4 inline-block text-sm underline">
+            ← Retour aux pièces
+          </Link>
+        </PageShell>
+      </>
+    );
+  }
+
+  let piece: {
+    id: string;
+    nom: string;
+    categorie: string | null;
+    stock_total: number | null;
+    photo_url: string | null;
+    notes: string | null;
+  } | null = null;
   let categories: string[] = [];
   let errorMessage: string | null = null;
+
   try {
-    const [{ data, error }, { data: allCats }] = await Promise.all([
-      supabase.from("pieces").select("*").eq("id", id).maybeSingle(),
-      supabase.from("pieces").select("categorie").not("categorie", "is", null),
-    ]);
-    piece = data;
-    if (error) errorMessage = error.message;
+    const { data, error } = await supabase
+      .from("pieces")
+      .select("id, nom, categorie, stock_total, photo_url, notes")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      errorMessage = error.message;
+    } else {
+      piece = data;
+    }
+
+    const { data: catRows } = await supabase
+      .from("pieces")
+      .select("categorie");
     const seen = new Set<string>();
-    for (const row of allCats ?? []) {
-      const cat = row.categorie?.trim();
+    for (const row of catRows ?? []) {
+      const cat =
+        typeof row.categorie === "string" ? row.categorie.trim() : "";
       if (!cat) continue;
       const key = cat.toLowerCase();
       if (seen.has(key)) continue;
@@ -47,6 +83,9 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
         <AppNav />
         <PageShell title="Pièce">
           <p className="text-sm text-red-600">{errorMessage}</p>
+          <Link href="/pieces" className="mt-4 inline-block text-sm underline">
+            ← Retour aux pièces
+          </Link>
         </PageShell>
       </>
     );
@@ -71,7 +110,7 @@ export default async function PieceDetailPage({ params, searchParams }: Props) {
         <PieceEditForm
           piece={piece}
           categories={categories}
-          photoError={photoError ?? null}
+          photoError={photoError}
         />
       </PageShell>
     </>

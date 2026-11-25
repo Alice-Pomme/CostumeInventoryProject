@@ -38,16 +38,20 @@ export function PiecesInventory({
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(pieces.length === 0);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(createPiece, initialState);
 
   useEffect(() => {
-    if (!state.createdId) return;
-    const q = state.photoWarning
-      ? `?photoError=${encodeURIComponent(state.photoWarning)}`
-      : "";
-    router.push(`/pieces/${state.createdId}${q}`);
+    if (!state.createdId || state.error) return;
+    // Stay on the list so a detail-page RSC error cannot hide a successful save.
+    setSavedNotice(
+      state.photoWarning
+        ? `Pièce enregistrée (photo non téléversée : ${state.photoWarning}).`
+        : "Pièce enregistrée dans Supabase.",
+    );
+    setAdding(false);
     router.refresh();
-  }, [state.createdId, state.photoWarning, router]);
+  }, [state.createdId, state.error, state.photoWarning, router]);
 
   return (
     <div className="space-y-6">
@@ -59,7 +63,10 @@ export function PiecesInventory({
         </p>
         <Button
           type="button"
-          onClick={() => setAdding((open) => !open)}
+          onClick={() => {
+            setSavedNotice(null);
+            setAdding((open) => !open);
+          }}
           aria-expanded={adding}
           aria-controls="nouvelle-piece-form"
         >
@@ -77,6 +84,23 @@ export function PiecesInventory({
         </Button>
       </div>
 
+      {savedNotice ? (
+        <p
+          role="status"
+          className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+        >
+          {savedNotice}{" "}
+          {state.createdId ? (
+            <Link
+              href={`/pieces/${state.createdId}`}
+              className="font-medium underline underline-offset-2"
+            >
+              Ouvrir la fiche
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
+
       {adding ? (
         <section
           id="nouvelle-piece-form"
@@ -93,21 +117,26 @@ export function PiecesInventory({
               {state.error}
             </p>
           ) : null}
-          {state.createdId && !state.error ? (
-            <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-              Pièce enregistrée — ouverture de la fiche…
-            </p>
-          ) : null}
           <form
             action={formAction}
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           >
             <Field label="Nom *">
-              <TextInput name="nom" required placeholder="Ex. Chemise blanche" />
+              <TextInput
+                name="nom"
+                required
+                placeholder="Ex. Chemise blanche"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
             </Field>
-            <Field label="Catégorie">
+            <div className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                Catégorie
+              </span>
               <CategorieCombobox options={categories} />
-            </Field>
+            </div>
             <Field label="Stock total">
               <TextInput
                 name="stock_total"
@@ -131,19 +160,6 @@ export function PiecesInventory({
               </Button>
             </div>
           </form>
-          <p className="mt-3 text-xs text-zinc-500">
-            Enregistrement serveur vers Supabase (table{" "}
-            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">pieces</code>
-            ). Une fois : exécutez{" "}
-            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
-              docs/sql/schema.sql
-            </code>{" "}
-            et configurez le secret{" "}
-            <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
-              SUPABASE_SERVICE_ROLE_KEY
-            </code>
-            .
-          </p>
         </section>
       ) : null}
 
