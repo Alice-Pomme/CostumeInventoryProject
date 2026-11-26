@@ -80,7 +80,8 @@ export async function loadTableRows<T>(
   if (!supabase) {
     return {
       rows: [],
-      errorMessage: "Connexion Cursor requise pour charger les données.",
+      errorMessage:
+        "Impossible de vérifier la session Cursor pour lire Supabase. Rouvrez l’app depuis Cursor, ou rechargez la page.",
       host,
       configured: true,
     };

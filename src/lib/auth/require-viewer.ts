@@ -3,16 +3,55 @@ import "server-only";
 import { headers } from "next/headers";
 import {
   IdentityError,
+  getIdentity,
   requireIdentity,
+  verifyIdentity,
+  type IdentityFailureReason,
   type VerifiedIdentity,
 } from "../../../cursor/identity";
 
 /**
- * Gate for Server Components and Server Actions: require a signed-in Cursor
- * viewer (or simulated local viewer) before using the Supabase service role.
+ * Copy Next.js headers into a web Headers object.
+ * Passing ReadonlyHeaders directly can miss identity headers depending on host.
+ */
+async function identityHeaders(): Promise<Headers> {
+  const incoming = await headers();
+  const out = new Headers();
+  incoming.forEach((value, key) => {
+    out.append(key, value);
+  });
+  return out;
+}
+
+/**
+ * Gate for Server Components and Server Actions.
+ * Prefers the raw identity token when Next exposes it, then falls back to the helper.
  */
 export async function requireViewer(): Promise<VerifiedIdentity> {
-  return requireIdentity(await headers(), { onFailure: "throw" });
+  const h = await identityHeaders();
+  const token =
+    h.get("x-cursor-identity-v2")?.trim() ||
+    h.get("x-cursor-identity")?.trim() ||
+    "";
+
+  if (token) {
+    const identity = await verifyIdentity(token);
+    if (identity.verified) return identity;
+    throw new IdentityError(401, identity.reason);
+  }
+
+  return requireIdentity(h, { onFailure: "throw" });
+}
+
+/** Soft check — returns reason when unverified (never throws). */
+export async function peekViewer(): Promise<
+  | { verified: true; identity: VerifiedIdentity }
+  | { verified: false; reason: IdentityFailureReason }
+> {
+  const h = await identityHeaders();
+  const identity = await getIdentity(h);
+  if (identity.verified) return { verified: true, identity };
+  return { verified: false, reason: identity.reason };
 }
 
 /**
