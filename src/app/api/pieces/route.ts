@@ -119,8 +119,23 @@ export async function GET(request: Request) {
       .map((row) => toPiece(row as Record<string, unknown>))
       .filter((p): p is PieceDto => p != null);
 
+    const categories = [
+      ...new Set(
+        pieces
+          .map((p) => (p.categorie ?? "").trim())
+          .filter(Boolean),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+
     return NextResponse.json(
-      { ok: true, pieces, error: null, message: null, host: hostLabel() },
+      {
+        ok: true,
+        pieces,
+        categories,
+        error: null,
+        message: null,
+        host: hostLabel(),
+      },
       { headers: NO_STORE },
     );
   } catch (err) {

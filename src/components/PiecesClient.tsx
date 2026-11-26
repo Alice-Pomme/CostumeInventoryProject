@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { CategorieCombobox } from "@/components/CategorieCombobox";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 type PieceRow = {
@@ -16,6 +17,7 @@ type PieceRow = {
 type ListResponse = {
   ok?: boolean;
   pieces?: PieceRow[];
+  categories?: string[];
   error?: string | null;
   message?: string | null;
   host?: string | null;
@@ -27,11 +29,13 @@ type ListResponse = {
  */
 export function PiecesClient() {
   const [pieces, setPieces] = useState<PieceRow[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [host, setHost] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [formKey, setFormKey] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -41,7 +45,19 @@ export function PiecesClient() {
       });
       const body = (await res.json()) as ListResponse;
       setHost(typeof body.host === "string" ? body.host : null);
-      setPieces(Array.isArray(body.pieces) ? body.pieces : []);
+      const nextPieces = Array.isArray(body.pieces) ? body.pieces : [];
+      setPieces(nextPieces);
+      setCategories(
+        Array.isArray(body.categories)
+          ? body.categories
+          : [
+              ...new Set(
+                nextPieces
+                  .map((p) => (p.categorie ?? "").trim())
+                  .filter(Boolean),
+              ),
+            ].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" })),
+      );
       if (body.ok) {
         setLoadError(null);
       } else {
@@ -87,6 +103,7 @@ export function PiecesClient() {
           setSaveError(body.message || "Échec de l’enregistrement.");
           return;
         }
+        setFormKey((k) => k + 1);
         await refresh();
       } catch {
         setSaveError("Impossible d’enregistrer la pièce.");
@@ -123,7 +140,11 @@ export function PiecesClient() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Nouvelle pièce
         </h2>
-        <form action={onSubmit} className="grid gap-4 sm:grid-cols-2">
+        <form
+          key={formKey}
+          action={onSubmit}
+          className="grid gap-4 sm:grid-cols-2"
+        >
           <Field label="Nom *">
             <TextInput
               name="nom"
@@ -132,13 +153,12 @@ export function PiecesClient() {
               autoComplete="off"
             />
           </Field>
-          <Field label="Catégorie">
-            <TextInput
-              name="categorie"
-              placeholder="Ex. Haut"
-              autoComplete="off"
-            />
-          </Field>
+          <div className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+              Catégorie
+            </span>
+            <CategorieCombobox options={categories} placeholder="Ex. Haut" />
+          </div>
           <Field label="Stock total">
             <TextInput
               name="stock_total"
