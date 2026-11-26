@@ -20,11 +20,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
 import type { CostumePieceWithPiece } from "@/types/database";
-import {
-  removePieceFromCostume,
-  reorderCostumePieces,
-  updateCostumePiece,
-} from "@/app/actions/costumes";
 import { FicheHabillage } from "@/components/FicheHabillage";
 import { SafeImage } from "@/components/SafeImage";
 import { Button, Field, TextInput } from "@/components/ui";
@@ -32,9 +27,11 @@ import { Button, Field, TextInput } from "@/components/ui";
 function SortableRow({
   item,
   costumeId,
+  onChanged,
 }: {
   item: CostumePieceWithPiece;
   costumeId: string;
+  onChanged?: () => void;
 }) {
   const {
     attributes,
@@ -44,11 +41,33 @@ function SortableRow({
     transition,
     isDragging,
   } = useSortable({ id: item.id });
+  const [, startTransition] = useTransition();
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  function onUpdateQty(formData: FormData) {
+    startTransition(async () => {
+      await fetch(`/api/costumes/${costumeId}/pieces/${item.id}`, {
+        method: "PATCH",
+        body: formData,
+        credentials: "same-origin",
+      });
+      onChanged?.();
+    });
+  }
+
+  function onRemove() {
+    startTransition(async () => {
+      await fetch(`/api/costumes/${costumeId}/pieces/${item.id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      onChanged?.();
+    });
+  }
 
   return (
     <li
@@ -82,10 +101,7 @@ function SortableRow({
           {item.pieces?.categorie ?? "Sans catégorie"}
         </p>
       </div>
-      <form
-        action={updateCostumePiece.bind(null, item.id, costumeId)}
-        className="flex items-end gap-2"
-      >
+      <form action={onUpdateQty} className="flex items-end gap-2">
         <Field label="Qté">
           <TextInput
             name="quantite_par_costume"
@@ -99,11 +115,9 @@ function SortableRow({
           OK
         </Button>
       </form>
-      <form action={removePieceFromCostume.bind(null, item.id, costumeId)}>
-        <Button type="submit" variant="danger" aria-label="Retirer">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </form>
+      <Button type="button" variant="danger" aria-label="Retirer" onClick={onRemove}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </li>
   );
 }
@@ -114,12 +128,14 @@ export function CostumeHabillagePanel({
   theme,
   description,
   items,
+  onChanged,
 }: {
   costumeId: string;
   costumeNom: string;
   theme?: string | null;
   description?: string | null;
   items: CostumePieceWithPiece[];
+  onChanged?: () => void;
 }) {
   const sorted = [...items].sort(
     (a, b) => (a.ordre_habillage ?? 0) - (b.ordre_habillage ?? 0),
@@ -149,10 +165,16 @@ export function CostumeHabillagePanel({
 
     startTransition(async () => {
       setOptimistic(next);
-      await reorderCostumePieces(
-        costumeId,
-        next.map((i) => i.id),
-      );
+      await fetch(`/api/costumes/${costumeId}/pieces`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          action: "reorder",
+          orderedLinkIds: next.map((i) => i.id),
+        }),
+      });
+      onChanged?.();
     });
   }
 
@@ -164,7 +186,7 @@ export function CostumeHabillagePanel({
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
           Glissez les pièces pour définir l’ordre (1, 2, 3…). L’ordre est
-          enregistré automatiquement dans Supabase.
+          enregistré automatiquement.
           {pending ? " Enregistrement…" : ""}
         </p>
 
@@ -188,6 +210,7 @@ export function CostumeHabillagePanel({
                     key={item.id}
                     item={item}
                     costumeId={costumeId}
+                    onChanged={onChanged}
                   />
                 ))}
               </ul>
