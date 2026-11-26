@@ -9,6 +9,8 @@ import {
   type CommandeWithCostume,
 } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function CommandesPage() {
   const { rows, errorMessage } = await loadTableRows<CommandeWithCostume>(
     async (supabase) => {

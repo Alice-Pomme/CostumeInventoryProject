@@ -13,6 +13,8 @@ type CostumeRow = {
   description: string | null;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function CostumesPage() {
   const { rows: costumes, errorMessage } = await loadTableRows<CostumeRow>(
     (supabase) =>

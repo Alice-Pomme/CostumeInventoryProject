@@ -8,6 +8,8 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PieceDetailPage({ params }: Props) {
   const { id } = await params;
 

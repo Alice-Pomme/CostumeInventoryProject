@@ -49,20 +49,70 @@ function getPhotoFile(formData: FormData): File | null {
   return photo;
 }
 
+function detectImageMime(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38 &&
+    (bytes[4] === 0x39 || bytes[4] === 0x37) &&
+    bytes[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+  return null;
+}
+
 async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
   if (file.size > MAX_PHOTO_BYTES) {
     throw new Error("Image trop lourde (max. 8 Mo).");
   }
-  const type = file.type;
-  if (!type || !ALLOWED_PHOTO_TYPES.has(type)) {
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const detected = detectImageMime(bytes);
+  if (!detected || !ALLOWED_PHOTO_TYPES.has(detected)) {
     throw new Error("Format d’image non supporté (JPEG, PNG, WebP ou GIF).");
+  }
+  // Browser MIME is advisory only — trust magic bytes.
+  if (file.type && file.type !== detected && ALLOWED_PHOTO_TYPES.has(file.type)) {
+    // Mismatch is OK if both are allowed images; still store as detected.
   }
 
   const ext =
-    file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
-    "jpg";
+    detected === "image/png"
+      ? "png"
+      : detected === "image/webp"
+        ? "webp"
+        : detected === "image/gif"
+          ? "gif"
+          : "jpg";
   const objectPath = `${pieceId}/${Date.now()}.${ext}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
 
   const supabase = createServiceClient();
 
@@ -81,7 +131,7 @@ async function storePiecePhoto(pieceId: string, file: File): Promise<string> {
   const { error: uploadError } = await supabase.storage
     .from(PHOTOS_PIECES_BUCKET)
     .upload(objectPath, bytes, {
-      contentType: type,
+      contentType: detected,
       upsert: true,
     });
 

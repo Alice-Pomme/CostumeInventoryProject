@@ -4,6 +4,8 @@ import { AppNav } from "@/components/AppNav";
 import { PageShell } from "@/components/ui";
 import { loadTableRows } from "@/lib/supabase/load";
 
+export const dynamic = "force-dynamic";
+
 export default async function NouvelleCommandePage() {
   const { rows: costumes } = await loadTableRows<{
     id: string;

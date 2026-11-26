@@ -17,8 +17,11 @@ import {
 } from "@/components/ui";
 import { getSupabaseOrNull } from "@/lib/supabase/load";
 import type { CostumePieceWithPiece } from "@/types/database";
+import { friendlyDbError } from "@/lib/db-errors";
 
 type Props = { params: Promise<{ id: string }> };
+
+export const dynamic = "force-dynamic";
 
 export default async function CostumeDetailPage({ params }: Props) {
   const { id } = await params;
@@ -56,9 +59,9 @@ export default async function CostumeDetailPage({ params }: Props) {
     costume = costumeRes.data;
     links = linksRes.data;
     allPieces = piecesRes.data;
-    if (costumeRes.error) errorMessage = costumeRes.error.message;
+    if (costumeRes.error) errorMessage = friendlyDbError(costumeRes.error.message);
   } catch (err) {
-    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+    errorMessage = friendlyDbError(err instanceof Error ? err.message : "Erreur inattendue.");
   }
 
   if (errorMessage) {

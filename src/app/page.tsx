@@ -4,6 +4,8 @@ import { Shirt, Layers, ClipboardList } from "lucide-react";
 import { AppNav } from "@/components/AppNav";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   await connection();
   const configured = hasSupabaseEnv();

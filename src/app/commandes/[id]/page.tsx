@@ -5,8 +5,11 @@ import { CommandeForm } from "@/components/CommandeForm";
 import { AppNav } from "@/components/AppNav";
 import { Button, PageShell } from "@/components/ui";
 import { getSupabaseOrNull, loadTableRows } from "@/lib/supabase/load";
+import { friendlyDbError } from "@/lib/db-errors";
 
 type Props = { params: Promise<{ id: string }> };
+
+export const dynamic = "force-dynamic";
 
 export default async function CommandeDetailPage({ params }: Props) {
   const { id } = await params;
@@ -22,9 +25,9 @@ export default async function CommandeDetailPage({ params }: Props) {
       .eq("id", id)
       .maybeSingle();
     commande = data;
-    if (error) errorMessage = error.message;
+    if (error) errorMessage = friendlyDbError(error.message);
   } catch (err) {
-    errorMessage = err instanceof Error ? err.message : "Erreur inattendue.";
+    errorMessage = friendlyDbError(err instanceof Error ? err.message : "Erreur inattendue.");
   }
 
   const { rows: costumes } = await loadTableRows<{
