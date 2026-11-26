@@ -150,6 +150,7 @@ export function CostumeHabillagePanel({
   nombre,
   items,
   onChanged,
+  showFiche = true,
 }: {
   costumeId: string;
   costumeNom: string;
@@ -158,6 +159,7 @@ export function CostumeHabillagePanel({
   nombre?: number | null;
   items: CostumePieceWithPiece[];
   onChanged?: () => void;
+  showFiche?: boolean;
 }) {
   const sorted = [...items].sort(
     (a, b) => (a.ordre_habillage ?? 0) - (b.ordre_habillage ?? 0),
@@ -241,13 +243,15 @@ export function CostumeHabillagePanel({
         )}
       </section>
 
-      <FicheHabillage
-        costumeNom={costumeNom}
-        theme={theme}
-        description={description}
-        nombre={nombre}
-        items={optimistic}
-      />
+      {showFiche ? (
+        <FicheHabillage
+          costumeNom={costumeNom}
+          theme={theme}
+          description={description}
+          nombre={nombre}
+          items={optimistic}
+        />
+      ) : null}
     </div>
   );
 }

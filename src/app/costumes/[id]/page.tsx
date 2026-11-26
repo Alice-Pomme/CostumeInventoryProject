@@ -1,9 +1,9 @@
 import { AppNav } from "@/components/AppNav";
-import { CostumeDetailClient } from "@/components/CostumeDetailClient";
+import { CostumePrintClient } from "@/components/CostumePrintClient";
 
 type Props = { params: Promise<{ id: string }> };
 
-/** Shell — detail/edit/pieces via /api/costumes/[id]. */
+/** Printable costume fiche + ordre d’assemblage. */
 export default async function CostumeDetailPage({ params }: Props) {
   const { id } = await params;
   return (
@@ -11,7 +11,7 @@ export default async function CostumeDetailPage({ params }: Props) {
       <div className="print:hidden">
         <AppNav />
       </div>
-      <CostumeDetailClient costumeId={id} />
+      <CostumePrintClient costumeId={id} />
     </>
   );
 }

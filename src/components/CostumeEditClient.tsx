@@ -31,7 +31,7 @@ type PieceOption = {
   categorie: string | null;
 };
 
-export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
+export function CostumeEditClient({ costumeId }: { costumeId: string }) {
   const router = useRouter();
   const [costume, setCostume] = useState<Costume | null>(null);
   const [links, setLinks] = useState<CostumePieceWithPiece[]>([]);
@@ -129,7 +129,13 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
   }
 
   function onDelete() {
-    if (!confirm("Supprimer ce costume ?")) return;
+    if (
+      !confirm(
+        `Supprimer définitivement le costume « ${costume?.nom ?? ""} » ? Cette action est irréversible.`,
+      )
+    ) {
+      return;
+    }
     startTransition(async () => {
       const res = await fetch(`/api/costumes/${costumeId}`, {
         method: "DELETE",
@@ -146,7 +152,7 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
 
   if (loading) {
     return (
-      <PageShell title="Costume" description="Chargement…">
+      <PageShell title="Modifier le costume" description="Chargement…">
         <p className="text-sm text-zinc-500">Chargement…</p>
       </PageShell>
     );
@@ -154,7 +160,7 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
 
   if (error || !costume) {
     return (
-      <PageShell title="Costume">
+      <PageShell title="Modifier le costume">
         <p className="text-sm text-red-600 dark:text-red-300">
           {error || "Costume introuvable."}
         </p>
@@ -170,78 +176,72 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
 
   return (
     <PageShell
-      title={costume.nom}
-      description="Modifier le costume, l’ordre d’habillage et imprimer la fiche."
+      title={`Modifier — ${costume.nom}`}
+      description="Champs du costume, pièces et ordre d’habillage."
       actions={
-        <Link
-          href="/costumes"
-          className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400 print:hidden"
-        >
-          ← Retour aux costumes
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/costumes/${costume.id}`}
+            className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
+          >
+            Voir la fiche
+          </Link>
+          <Link
+            href="/costumes"
+            className="text-sm text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
+          >
+            ← Retour
+          </Link>
+        </div>
       }
     >
       {saveError ? (
         <p
           role="alert"
-          className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200 print:hidden"
+          className="mb-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
         >
           {saveError}
         </p>
       ) : null}
 
-      <section className="mb-10 print:hidden">
-        <form
-          key={formKey}
-          action={onSave}
-          className="grid gap-4 sm:grid-cols-2"
-        >
-          <Field label="Nom *">
-            <TextInput name="nom" required defaultValue={costume.nom} />
-          </Field>
-          <Field label="Thème">
-            <TextInput name="theme" defaultValue={costume.theme ?? ""} />
-          </Field>
-          <Field label="Nombre de costumes">
-            <TextInput
-              name="nombre"
-              type="number"
-              min={1}
-              defaultValue={costume.nombre ?? 1}
+      <form
+        id="costume-edit-form"
+        key={formKey}
+        action={onSave}
+        className="mb-10 grid gap-4 sm:grid-cols-2"
+      >
+        <Field label="Nom *">
+          <TextInput name="nom" required defaultValue={costume.nom} />
+        </Field>
+        <Field label="Thème">
+          <TextInput name="theme" defaultValue={costume.theme ?? ""} />
+        </Field>
+        <Field label="Nombre de costumes">
+          <TextInput
+            name="nombre"
+            type="number"
+            min={1}
+            defaultValue={costume.nombre ?? 1}
+          />
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label="Description / note">
+            <TextArea
+              name="description"
+              defaultValue={costume.description ?? ""}
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Description">
-              <TextArea
-                name="description"
-                defaultValue={costume.description ?? ""}
-              />
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Photo
-            </h3>
-            <PhotoDropzone
-              existingUrl={safeImageSrc(costume.photo_url)}
-              required={false}
-            />
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={pending}>
-              {pending ? "Enregistrement…" : "Enregistrer"}
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              disabled={pending}
-              onClick={onDelete}
-            >
-              Supprimer le costume
-            </Button>
-          </div>
-        </form>
-      </section>
+        </div>
+        <div className="sm:col-span-2">
+          <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Photo
+          </h3>
+          <PhotoDropzone
+            existingUrl={safeImageSrc(costume.photo_url)}
+            required={false}
+          />
+        </div>
+      </form>
 
       <CostumeHabillagePanel
         costumeId={costume.id}
@@ -251,9 +251,10 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
         nombre={costume.nombre}
         items={links}
         onChanged={refresh}
+        showFiche={false}
       />
 
-      <section className="mt-10 print:hidden">
+      <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           Ajouter une pièce
         </h2>
@@ -301,6 +302,20 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
           </form>
         )}
       </section>
+
+      <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <Button type="submit" form="costume-edit-form" disabled={pending}>
+          {pending ? "Enregistrement…" : "Enregistrer"}
+        </Button>
+        <Button
+          type="button"
+          variant="danger"
+          disabled={pending}
+          onClick={onDelete}
+        >
+          Supprimer le costume
+        </Button>
+      </div>
     </PageShell>
   );
 }

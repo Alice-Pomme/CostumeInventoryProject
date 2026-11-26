@@ -42,7 +42,7 @@ export async function createCostume(formData: FormData) {
 
   if (error) throw new Error(friendlyDbError(error.message));
   revalidatePath("/costumes");
-  redirect(`/costumes/${data.id}`);
+  redirect(`/costumes/${data.id}/edit`);
 }
 
 export async function updateCostume(costumeId: string, formData: FormData) {
