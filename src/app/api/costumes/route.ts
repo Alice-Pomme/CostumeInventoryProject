@@ -18,6 +18,7 @@ type CostumeDto = {
   theme: string | null;
   photo_url: string | null;
   description: string | null;
+  nombre: number;
 };
 
 function hostLabel(): string | null {
@@ -40,6 +41,7 @@ function toCostume(row: Record<string, unknown>): CostumeDto | null {
   const id = row.id == null ? "" : String(row.id);
   const nom = row.nom == null ? "" : String(row.nom);
   if (!id || !nom.trim()) return null;
+  const nombreRaw = row.nombre;
   return {
     id,
     nom,
@@ -61,6 +63,12 @@ function toCostume(row: Record<string, unknown>): CostumeDto | null {
         : row.description == null
           ? null
           : String(row.description),
+    nombre:
+      typeof nombreRaw === "number"
+        ? nombreRaw
+        : nombreRaw == null
+          ? 1
+          : Number(nombreRaw) || 1,
   };
 }
 
@@ -93,7 +101,7 @@ export async function GET(request: Request) {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("costumes")
-      .select("id, nom, theme, photo_url, description")
+      .select("id, nom, theme, photo_url, description, nombre")
       .order("nom");
 
     if (error) {
@@ -157,15 +165,17 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServiceClient();
+    const nombre = Math.max(1, Number(formData.get("nombre") || 1) || 1);
     const { data, error } = await supabase
       .from("costumes")
       .insert({
         nom,
         theme: emptyToNull(formData.get("theme")),
         description: emptyToNull(formData.get("description")),
+        nombre,
         photo_url: null,
       })
-      .select("id, nom, theme, photo_url, description")
+      .select("id, nom, theme, photo_url, description, nombre")
       .single();
 
     if (error || !data) {

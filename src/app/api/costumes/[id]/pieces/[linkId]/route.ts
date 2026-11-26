@@ -32,10 +32,25 @@ export async function PATCH(request: Request, context: Ctx) {
   try {
     const formData = await request.formData();
     const quantite = Number(formData.get("quantite_par_costume") || 1);
+    const notesRaw = formData.get("notes");
+    const notes =
+      notesRaw == null
+        ? undefined
+        : String(notesRaw).trim()
+          ? String(notesRaw).trim()
+          : null;
     const supabase = createServiceClient();
+    const patch: {
+      quantite_par_costume: number;
+      notes?: string | null;
+    } = {
+      quantite_par_costume: Math.max(1, quantite || 1),
+    };
+    if (notes !== undefined) patch.notes = notes;
+
     const { error } = await supabase
       .from("costume_pieces")
-      .update({ quantite_par_costume: Math.max(1, quantite || 1) })
+      .update(patch)
       .eq("id", linkId)
       .eq("costume_id", costumeId);
 

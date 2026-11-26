@@ -27,12 +27,14 @@ export async function createCostume(formData: FormData) {
   const nom = String(formData.get("nom") ?? "").trim();
   if (!nom) throw new Error("Le nom est obligatoire.");
 
+  const nombre = Math.max(1, Number(formData.get("nombre") || 1) || 1);
   const { data, error } = await supabase
     .from("costumes")
     .insert({
       nom,
       theme: emptyToNull(formData.get("theme")),
       description: emptyToNull(formData.get("description")),
+      nombre,
       photo_url: photoUrlFromForm(formData),
     })
     .select("id")
@@ -48,12 +50,14 @@ export async function updateCostume(costumeId: string, formData: FormData) {
   const nom = String(formData.get("nom") ?? "").trim();
   if (!nom) throw new Error("Le nom est obligatoire.");
 
+  const nombre = Math.max(1, Number(formData.get("nombre") || 1) || 1);
   const { error } = await supabase
     .from("costumes")
     .update({
       nom,
       theme: emptyToNull(formData.get("theme")),
       description: emptyToNull(formData.get("description")),
+      nombre,
       photo_url: photoUrlFromForm(formData),
     })
     .eq("id", costumeId);
@@ -77,6 +81,7 @@ export async function addPieceToCostume(costumeId: string, formData: FormData) {
   if (!pieceId) throw new Error("Choisissez une pièce.");
 
   const quantite = Number(formData.get("quantite_par_costume") || 1);
+  const notes = emptyToNull(formData.get("notes"));
 
   const { data: existing } = await supabase
     .from("costume_pieces")
@@ -95,6 +100,7 @@ export async function addPieceToCostume(costumeId: string, formData: FormData) {
     piece_id: pieceId,
     quantite_par_costume: quantite,
     ordre_habillage: nextOrder,
+    notes,
   });
 
   if (error) throw new Error(friendlyDbError(error.message));
@@ -108,9 +114,10 @@ export async function updateCostumePiece(
 ) {
   const supabase = await createClient();
   const quantite = Number(formData.get("quantite_par_costume") || 1);
+  const notes = emptyToNull(formData.get("notes"));
   const { error } = await supabase
     .from("costume_pieces")
-    .update({ quantite_par_costume: quantite })
+    .update({ quantite_par_costume: quantite, notes })
     .eq("id", linkId)
     .eq("costume_id", costumeId);
 

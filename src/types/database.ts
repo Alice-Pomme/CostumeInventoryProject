@@ -84,6 +84,7 @@ export interface Database {
           theme: string | null;
           photo_url: string | null;
           description: string | null;
+          nombre: number | null;
           created_at: string | null;
           updated_at: string | null;
         };
@@ -93,6 +94,7 @@ export interface Database {
           theme?: string | null;
           photo_url?: string | null;
           description?: string | null;
+          nombre?: number | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -102,6 +104,7 @@ export interface Database {
           theme?: string | null;
           photo_url?: string | null;
           description?: string | null;
+          nombre?: number | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -114,6 +117,7 @@ export interface Database {
           piece_id: string;
           quantite_par_costume: number | null;
           ordre_habillage: number | null;
+          notes: string | null;
           created_at: string | null;
         };
         Insert: {
@@ -122,6 +126,7 @@ export interface Database {
           piece_id: string;
           quantite_par_costume?: number | null;
           ordre_habillage?: number | null;
+          notes?: string | null;
           created_at?: string | null;
         };
         Update: {
@@ -130,6 +135,7 @@ export interface Database {
           piece_id?: string;
           quantite_par_costume?: number | null;
           ordre_habillage?: number | null;
+          notes?: string | null;
           created_at?: string | null;
         };
         Relationships: [

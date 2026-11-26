@@ -22,7 +22,7 @@ import { GripVertical, Trash2 } from "lucide-react";
 import type { CostumePieceWithPiece } from "@/types/database";
 import { FicheHabillage } from "@/components/FicheHabillage";
 import { SafeImage } from "@/components/SafeImage";
-import { Button, Field, TextInput } from "@/components/ui";
+import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 function SortableRow({
   item,
@@ -48,7 +48,7 @@ function SortableRow({
     transition,
   };
 
-  function onUpdateQty(formData: FormData) {
+  function onUpdateLink(formData: FormData) {
     startTransition(async () => {
       await fetch(`/api/costumes/${costumeId}/pieces/${item.id}`, {
         method: "PATCH",
@@ -73,35 +73,48 @@ function SortableRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex flex-wrap items-center gap-3 border-b border-zinc-200 py-3 dark:border-zinc-800 ${
+      className={`border-b border-zinc-200 py-3 dark:border-zinc-800 ${
         isDragging ? "bg-zinc-50 opacity-80 dark:bg-zinc-900" : ""
       }`}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-        {item.ordre_habillage ?? "—"}
-      </span>
-      <button
-        type="button"
-        className="cursor-grab touch-none rounded p-1 text-zinc-400 hover:text-zinc-700 active:cursor-grabbing dark:hover:text-zinc-200"
-        aria-label={`Déplacer ${item.pieces?.nom ?? "la pièce"}`}
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <SafeImage
-        src={item.pieces?.photo_url}
-        className="h-10 w-10 rounded object-cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-zinc-900 dark:text-zinc-50">
-          {item.pieces?.nom ?? "Pièce inconnue"}
-        </p>
-        <p className="text-xs text-zinc-500">
-          {item.pieces?.categorie ?? "Sans catégorie"}
-        </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          {item.ordre_habillage ?? "—"}
+        </span>
+        <button
+          type="button"
+          className="cursor-grab touch-none rounded p-1 text-zinc-400 hover:text-zinc-700 active:cursor-grabbing dark:hover:text-zinc-200"
+          aria-label={`Déplacer ${item.pieces?.nom ?? "la pièce"}`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <SafeImage
+          src={item.pieces?.photo_url}
+          className="h-10 w-10 rounded object-cover"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-zinc-900 dark:text-zinc-50">
+            {item.pieces?.nom ?? "Pièce inconnue"}
+          </p>
+          <p className="text-xs text-zinc-500">
+            {item.pieces?.categorie ?? "Sans catégorie"}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="danger"
+          aria-label="Retirer"
+          onClick={onRemove}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
-      <form action={onUpdateQty} className="flex items-end gap-2">
+      <form
+        action={onUpdateLink}
+        className="mt-3 ml-11 grid gap-3 sm:grid-cols-[5rem_1fr_auto]"
+      >
         <Field label="Qté">
           <TextInput
             name="quantite_par_costume"
@@ -111,13 +124,20 @@ function SortableRow({
             className="w-20"
           />
         </Field>
-        <Button type="submit" variant="secondary">
-          OK
-        </Button>
+        <Field label="Note d’habillage (ce costume seulement)">
+          <TextArea
+            name="notes"
+            rows={2}
+            defaultValue={item.notes ?? ""}
+            placeholder="Ex. boutonner avant d’ajouter la ceinture"
+          />
+        </Field>
+        <div className="flex items-end">
+          <Button type="submit" variant="secondary">
+            OK
+          </Button>
+        </div>
       </form>
-      <Button type="button" variant="danger" aria-label="Retirer" onClick={onRemove}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
     </li>
   );
 }
@@ -127,6 +147,7 @@ export function CostumeHabillagePanel({
   costumeNom,
   theme,
   description,
+  nombre,
   items,
   onChanged,
 }: {
@@ -134,6 +155,7 @@ export function CostumeHabillagePanel({
   costumeNom: string;
   theme?: string | null;
   description?: string | null;
+  nombre?: number | null;
   items: CostumePieceWithPiece[];
   onChanged?: () => void;
 }) {
@@ -185,8 +207,8 @@ export function CostumeHabillagePanel({
           Ordre d’habillage
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
-          Glissez les pièces pour définir l’ordre (1, 2, 3…). L’ordre est
-          enregistré automatiquement.
+          Glissez les pièces pour définir l’ordre (1, 2, 3…). Chaque note
+          d’habillage est liée à cette pièce dans ce costume uniquement.
           {pending ? " Enregistrement…" : ""}
         </p>
 
@@ -223,6 +245,7 @@ export function CostumeHabillagePanel({
         costumeNom={costumeNom}
         theme={theme}
         description={description}
+        nombre={nombre}
         items={optimistic}
       />
     </div>

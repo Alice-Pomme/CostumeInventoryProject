@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CostumeHabillagePanel } from "@/components/CostumeHabillagePanel";
 import { PhotoDropzone } from "@/components/PhotoDropzone";
+import { PieceSearchPicker } from "@/components/PieceSearchPicker";
 import {
   Button,
   Field,
   PageShell,
-  Select,
   TextArea,
   TextInput,
 } from "@/components/ui";
@@ -22,6 +22,7 @@ type Costume = {
   theme: string | null;
   description: string | null;
   photo_url: string | null;
+  nombre?: number | null;
 };
 
 type PieceOption = {
@@ -40,6 +41,8 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
+  const [addFormKey, setAddFormKey] = useState(0);
+  const [selectedPieceId, setSelectedPieceId] = useState("");
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/costumes/${costumeId}`, {
@@ -116,6 +119,8 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
           setSaveError(body.message || "Impossible de lier la pièce.");
           return;
         }
+        setSelectedPieceId("");
+        setAddFormKey((k) => k + 1);
         await refresh();
       } catch {
         setSaveError("Impossible de lier la pièce.");
@@ -197,6 +202,14 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
           <Field label="Thème">
             <TextInput name="theme" defaultValue={costume.theme ?? ""} />
           </Field>
+          <Field label="Nombre de costumes">
+            <TextInput
+              name="nombre"
+              type="number"
+              min={1}
+              defaultValue={costume.nombre ?? 1}
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Field label="Description">
               <TextArea
@@ -235,6 +248,7 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
         costumeNom={costume.nom}
         theme={costume.theme}
         description={costume.description}
+        nombre={costume.nombre}
         items={links}
         onChanged={refresh}
       />
@@ -252,34 +266,38 @@ export function CostumeDetailClient({ costumeId }: { costumeId: string }) {
           </p>
         ) : (
           <form
+            key={addFormKey}
             action={onAddPiece}
-            className="flex flex-wrap items-end gap-3"
+            className="grid max-w-2xl gap-4"
           >
-            <Field label="Pièce">
-              <Select name="piece_id" required defaultValue="">
-                <option value="" disabled>
-                  Choisir…
-                </option>
-                {availablePieces.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nom}
-                    {p.categorie ? ` (${p.categorie})` : ""}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Quantité par costume">
-              <TextInput
-                name="quantite_par_costume"
-                type="number"
-                min={1}
-                defaultValue={1}
-                className="w-28"
-              />
-            </Field>
-            <Button type="submit" disabled={pending}>
-              Lier la pièce
-            </Button>
+            <PieceSearchPicker
+              pieces={availablePieces}
+              mode="single"
+              value={selectedPieceId}
+              onChange={setSelectedPieceId}
+            />
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="Quantité par costume">
+                <TextInput
+                  name="quantite_par_costume"
+                  type="number"
+                  min={1}
+                  defaultValue={1}
+                  className="w-28"
+                />
+              </Field>
+              <div className="min-w-[12rem] flex-1">
+                <Field label="Note d’habillage (optionnel)">
+                  <TextInput
+                    name="notes"
+                    placeholder="Ex. enfiler avant la jupe"
+                  />
+                </Field>
+              </div>
+              <Button type="submit" disabled={pending || !selectedPieceId}>
+                Lier la pièce
+              </Button>
+            </div>
           </form>
         )}
       </section>

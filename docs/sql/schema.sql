@@ -39,9 +39,14 @@ create table if not exists public.costumes (
   theme text,
   photo_url text,
   description text,
+  nombre integer not null default 1,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Existing projects: add nombre if missing
+alter table public.costumes
+  add column if not exists nombre integer not null default 1;
 
 alter table public.costumes enable row level security;
 
@@ -61,9 +66,14 @@ create table if not exists public.costume_pieces (
   piece_id uuid not null references public.pieces (id) on delete cascade,
   quantite_par_costume integer not null default 1,
   ordre_habillage integer not null default 0,
+  notes text,
   created_at timestamptz default now(),
   unique (costume_id, piece_id)
 );
+
+-- Existing projects: per-costume piece notes (habillage)
+alter table public.costume_pieces
+  add column if not exists notes text;
 
 alter table public.costume_pieces enable row level security;
 

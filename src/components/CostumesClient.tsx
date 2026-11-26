@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { PhotoDropzone } from "@/components/PhotoDropzone";
+import { PieceSearchPicker } from "@/components/PieceSearchPicker";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 type CostumeRow = {
@@ -13,6 +14,7 @@ type CostumeRow = {
   theme: string | null;
   photo_url: string | null;
   description: string | null;
+  nombre?: number;
 };
 
 type PieceOption = {
@@ -131,6 +133,14 @@ export function CostumesClient() {
           <Field label="Thème">
             <TextInput name="theme" placeholder="Ex. Conte de fées" />
           </Field>
+          <Field label="Nombre de costumes">
+            <TextInput
+              name="nombre"
+              type="number"
+              min={1}
+              defaultValue={1}
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Field label="Description">
               <TextArea
@@ -158,25 +168,7 @@ export function CostumesClient() {
                 d’abord, ou ajoutez-les après la création.
               </p>
             ) : (
-              <ul className="max-h-48 space-y-2 overflow-auto rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
-                {pieces.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      name="piece_ids"
-                      value={p.id}
-                      id={`piece-${p.id}`}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor={`piece-${p.id}`} className="cursor-pointer">
-                      {p.nom}
-                      {p.categorie ? (
-                        <span className="text-zinc-500"> ({p.categorie})</span>
-                      ) : null}
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <PieceSearchPicker pieces={pieces} mode="multi" />
             )}
           </div>
           <div className="flex items-end">
@@ -209,6 +201,7 @@ export function CostumesClient() {
                   </p>
                   <p className="text-sm text-zinc-500">
                     {costume.theme || "Sans thème"}
+                    {` · ×${costume.nombre ?? 1}`}
                     {costume.description
                       ? ` · ${costume.description.slice(0, 80)}`
                       : ""}

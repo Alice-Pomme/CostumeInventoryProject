@@ -9,11 +9,13 @@ export function FicheHabillage({
   costumeNom,
   theme,
   description,
+  nombre,
   items,
 }: {
   costumeNom: string;
   theme?: string | null;
   description?: string | null;
+  nombre?: number | null;
   items: CostumePieceWithPiece[];
 }) {
   const ordered = [...items].sort(
@@ -36,6 +38,11 @@ export function FicheHabillage({
           {theme ? (
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Thème : {theme}
+            </p>
+          ) : null}
+          {nombre != null && nombre > 0 ? (
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              Nombre : {nombre}
             </p>
           ) : null}
           {description ? (
@@ -87,6 +94,11 @@ export function FicheHabillage({
                   {" · "}
                   Qté {item.quantite_par_costume ?? 1}
                 </p>
+                {item.notes ? (
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                    {item.notes}
+                  </p>
+                ) : null}
               </div>
               <div className="hidden h-5 w-5 shrink-0 rounded border border-zinc-300 print:block" />
             </li>

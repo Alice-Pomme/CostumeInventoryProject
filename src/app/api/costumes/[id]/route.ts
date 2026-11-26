@@ -43,7 +43,7 @@ export async function GET(request: Request, context: Ctx) {
       supabase
         .from("costume_pieces")
         .select(
-          "id, costume_id, piece_id, quantite_par_costume, ordre_habillage, created_at, pieces(id, nom, categorie, photo_url, stock_total)",
+          "id, costume_id, piece_id, quantite_par_costume, ordre_habillage, notes, created_at, pieces(id, nom, categorie, photo_url, stock_total)",
         )
         .eq("costume_id", id)
         .order("ordre_habillage", { ascending: true }),
@@ -113,11 +113,13 @@ export async function PATCH(request: Request, context: Ctx) {
       nom: string;
       theme: string | null;
       description: string | null;
+      nombre: number;
       photo_url?: string;
     } = {
       nom,
       theme: emptyToNull(formData.get("theme")),
       description: emptyToNull(formData.get("description")),
+      nombre: Math.max(1, Number(formData.get("nombre") || 1) || 1),
     };
 
     const photo = formData.get("photo");

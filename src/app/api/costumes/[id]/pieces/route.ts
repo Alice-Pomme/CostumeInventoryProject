@@ -75,6 +75,8 @@ export async function POST(request: Request, context: Ctx) {
       );
     }
     const quantite = Number(formData.get("quantite_par_costume") || 1);
+    const notesRaw = String(formData.get("notes") ?? "").trim();
+    const notes = notesRaw.length ? notesRaw : null;
 
     const { data: existing } = await supabase
       .from("costume_pieces")
@@ -93,6 +95,7 @@ export async function POST(request: Request, context: Ctx) {
       piece_id: pieceId,
       quantite_par_costume: Math.max(1, quantite || 1),
       ordre_habillage: nextOrder,
+      notes,
     });
 
     if (error) {
