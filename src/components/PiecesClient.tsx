@@ -170,18 +170,23 @@ export function PiecesClient() {
               defaultValue={0}
             />
           </Field>
+          <div
+            className="sm:col-span-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+            data-testid="nouvelle-piece-photo"
+          >
+            <Field label="Photo">
+              <p className="mb-2 text-xs text-zinc-500">
+                Optionnel — glisser-déposer ou parcourir (JPEG, PNG, WebP, GIF).
+              </p>
+              <PhotoDropzone required={false} />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Notes">
               <TextArea name="notes" placeholder="Notes optionnelles" />
             </Field>
           </div>
-          <div className="sm:col-span-2">
-            <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Photo
-            </h3>
-            <PhotoDropzone required={false} />
-          </div>
-          <div className="flex items-end">
+          <div className="flex items-end sm:col-span-2">
             <Button type="submit" disabled={pending}>
               <Plus className="mr-1.5 h-4 w-4" />
               {pending ? "Enregistrement…" : "Enregistrer la pièce"}

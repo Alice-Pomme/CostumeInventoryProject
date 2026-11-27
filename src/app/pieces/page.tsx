@@ -13,7 +13,7 @@ export default function PiecesPage() {
       <AppNav />
       <PageShell
         title="Pièces"
-        description="Inventaire des pièces : nom, catégorie, stock total et notes."
+        description="Inventaire des pièces : nom, catégorie, stock, photo et notes."
       >
         <PiecesClient />
       </PageShell>
