@@ -6,6 +6,7 @@ import {
 } from "@/lib/supabase/classify-error";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { getSupabaseUrl, hasSupabaseEnv } from "@/lib/supabase/env";
+import { storeInventoryPhoto } from "@/lib/supabase/store-photo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ type PieceDto = {
   categorie: string | null;
   stock_total: number;
   notes: string | null;
+  photo_url?: string | null;
 };
 
 function hostLabel(): string | null {
@@ -55,6 +57,12 @@ function toPiece(row: Record<string, unknown>): PieceDto | null {
         : row.notes == null
           ? null
           : String(row.notes),
+    photo_url:
+      typeof row.photo_url === "string"
+        ? row.photo_url
+        : row.photo_url == null
+          ? null
+          : String(row.photo_url),
   };
 }
 
@@ -192,8 +200,9 @@ export async function POST(request: Request) {
         categorie: emptyToNull(formData.get("categorie")),
         stock_total: Number(formData.get("stock_total") || 0),
         notes: emptyToNull(formData.get("notes")),
+        photo_url: null,
       })
-      .select("id, nom, categorie, stock_total, notes")
+      .select("id, nom, categorie, stock_total, notes, photo_url")
       .single();
 
     if (error || !data) {
@@ -207,6 +216,32 @@ export async function POST(request: Request) {
         },
         { status: 502, headers: NO_STORE },
       );
+    }
+
+    const pieceId = String(data.id);
+    const photo = formData.get("photo");
+    if (photo instanceof File && photo.size > 0) {
+      try {
+        const photoPath = await storeInventoryPhoto(pieceId, photo);
+        await supabase
+          .from("pieces")
+          .update({ photo_url: photoPath })
+          .eq("id", pieceId);
+        (data as { photo_url: string | null }).photo_url = photoPath;
+      } catch (err) {
+        return NextResponse.json(
+          {
+            ok: true,
+            piece: toPiece(data as Record<string, unknown>),
+            warning:
+              err instanceof Error
+                ? err.message
+                : "Pièce créée, mais la photo a échoué.",
+            host: hostLabel(),
+          },
+          { status: 201, headers: NO_STORE },
+        );
+      }
     }
 
     const piece = toPiece(data as Record<string, unknown>);

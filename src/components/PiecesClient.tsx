@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { CategorieCombobox } from "@/components/CategorieCombobox";
+import { PhotoDropzone } from "@/components/PhotoDropzone";
 import { Button, Field, TextArea, TextInput } from "@/components/ui";
 
 type PieceRow = {
@@ -97,6 +98,7 @@ export function PiecesClient() {
         const body = (await res.json()) as {
           ok?: boolean;
           message?: string;
+          warning?: string;
           piece?: PieceRow;
         };
         if (!body.ok) {
@@ -104,6 +106,7 @@ export function PiecesClient() {
           return;
         }
         setFormKey((k) => k + 1);
+        if (body.warning) setSaveError(body.warning);
         await refresh();
       } catch {
         setSaveError("Impossible d’enregistrer la pièce.");
@@ -171,6 +174,12 @@ export function PiecesClient() {
             <Field label="Notes">
               <TextArea name="notes" placeholder="Notes optionnelles" />
             </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <h3 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Photo
+            </h3>
+            <PhotoDropzone required={false} />
           </div>
           <div className="flex items-end">
             <Button type="submit" disabled={pending}>
